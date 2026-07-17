@@ -1066,7 +1066,7 @@ const JobDetail: React.FC = () => {
                                     )}
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-100">
+                                      <tbody className="divide-y divide-gray-100">
                                 {(request.items || []).map((item) => {
                                   const pendingReturn = item.quantity_pending_return || 0;
                                   const available =
@@ -1076,7 +1076,19 @@ const JobDetail: React.FC = () => {
                                     pendingReturn;
                                   const canTakeAction =
                                     ['issued', 'approved', 'used', 'return_requested'].includes(item.status) && available > 0;
-                                  const needsAction = canTakeAction || item.status === 'return_requested';
+                                  const rejectedQty = customerEstimates.reduce((sum, est) => {
+                                    return sum + (est.items || []).reduce((itemSum, ceItem) => {
+                                      if (ceItem.approval_status === 'rejected' && ceItem.item_type === 'part' && ceItem.part_id === item.part_id) {
+                                        return itemSum + (ceItem.quantity || 1);
+                                      }
+                                      return itemSum;
+                                    }, 0);
+                                  }, 0);
+                                  const maxReturnableRejected = Math.min(
+                                    item.quantity_used || 0,
+                                    Math.max(0, rejectedQty - (item.quantity_returned || 0) - (item.quantity_pending_return || 0))
+                                  );
+                                  const needsAction = canTakeAction || item.status === 'return_requested' || maxReturnableRejected > 0;
                                   const isStorekeeper =
                                     user?.role === 'storekeeper' || user?.role === 'admin';
                                   return (
@@ -1140,6 +1152,24 @@ const JobDetail: React.FC = () => {
                                                   className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
                                                 >
                                                   Update
+                                                </button>
+                                              )}
+                                              {isAssignedEngineer && maxReturnableRejected > 0 && (
+                                                <button
+                                                  onClick={async () => {
+                                                    const qtyStr = window.prompt(`Enter quantity of rejected parts to return (max ${maxReturnableRejected}):`, maxReturnableRejected.toString());
+                                                    if (qtyStr === null) return;
+                                                    const qty = parseInt(qtyStr);
+                                                    if (isNaN(qty) || qty <= 0 || qty > maxReturnableRejected) {
+                                                      toast.error("Invalid quantity");
+                                                      return;
+                                                    }
+                                                    await handleReturnParts(item.id, qty);
+                                                  }}
+                                                  disabled={processingPart === item.id}
+                                                  className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                                                >
+                                                  Return Rejected
                                                 </button>
                                               )}
                                               {isStorekeeper && item.status === 'return_requested' && (

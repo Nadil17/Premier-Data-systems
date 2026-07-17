@@ -150,6 +150,7 @@ export interface EngineerEstimate { id: number; job_id: number; items: CustomerE
 
 export interface PartsRequestItem {
   id: number;
+  part_id?: number;
   part_name?: string;
   part_number?: string;
   quantity_requested: number;
