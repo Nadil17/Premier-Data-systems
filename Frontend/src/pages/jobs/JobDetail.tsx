@@ -286,6 +286,7 @@ const JobDetail: React.FC = () => {
     if (rejectedParts.size === 0) return false;
 
     const returnedParts = new Map<number, number>();
+    const issuedParts = new Map<number, number>();
     partsRequests.forEach((request) => {
       (request.items || []).forEach((item: any) => {
         if (item.part_id) {
@@ -293,13 +294,19 @@ const JobDetail: React.FC = () => {
             item.part_id,
             (returnedParts.get(item.part_id) || 0) + (item.quantity_returned || 0) + (item.quantity_pending_return || 0)
           );
+          issuedParts.set(
+            item.part_id,
+            (issuedParts.get(item.part_id) || 0) + (item.quantity_issued || 0)
+          );
         }
       });
     });
 
     for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
       const returnedQty = returnedParts.get(partId) || 0;
-      if (returnedQty < rejectedQty) {
+      const issuedQty = issuedParts.get(partId) || 0;
+      const requiredReturnQty = Math.min(rejectedQty, issuedQty);
+      if (returnedQty < requiredReturnQty) {
         unreturned = true;
         break;
       }
