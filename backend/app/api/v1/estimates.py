@@ -20,7 +20,7 @@ from app.schemas.estimate import (
     EngineerEstimateCreate, EngineerEstimateResponse,
     CustomerEstimateCreate, CustomerEstimateResponse,
     ManualApprovalRequest, SendEmailRequest, SendEmailResponse,
-    EstimateVerifyRequest, EstimateVerifyResponse, CustomerEstimateApprovalRequest
+    OTPVerification, OTPVerificationResponse, CustomerEstimateApproval
 )
 from app.utils.id_generator import (
     generate_engineer_estimate_number,
@@ -387,7 +387,7 @@ def manual_approve_estimate(
 
     customer = job.customer
 
-    # Update item approval statuses and quantities
+    # Update item approval statuses
     for item_data in request.items:
         db_item = db.query(CustomerEstimateItem).filter(
             CustomerEstimateItem.estimate_id == db_estimate.id,
@@ -395,12 +395,6 @@ def manual_approve_estimate(
         ).first()
         if db_item:
             db_item.approval_status = item_data.approval_status
-            if item_data.approved_quantity is not None:
-                db_item.approved_quantity = item_data.approved_quantity
-            elif item_data.approval_status == CustomerEstimateItemApprovalStatus.APPROVED:
-                db_item.approved_quantity = db_item.quantity
-            elif item_data.approval_status == CustomerEstimateItemApprovalStatus.REJECTED:
-                db_item.approved_quantity = 0
             db.add(db_item)
 
     # Update overall status
@@ -508,11 +502,11 @@ def get_customer_estimates_for_job(
     return [populate_cust_est(est) for est in estimates]
 
 
-@router.post("/customer/verify", response_model=EstimateVerifyResponse)
+@router.post("/customer/verify", response_model=OTPVerificationResponse)
 def verify_customer_estimate_otp(
     *,
     db: Session = Depends(get_db),
-    verification: EstimateVerifyRequest
+    verification: OTPVerification
 ):
     db_estimate = (
         db.query(CustomerEstimate)
@@ -563,7 +557,7 @@ def approve_customer_estimate(
     estimateNumber: str,
     *,
     db: Session = Depends(get_db),
-    approval_data: CustomerEstimateApprovalRequest
+    approval_data: CustomerEstimateApproval
 ):
     db_estimate = (
         db.query(CustomerEstimate)
@@ -591,21 +585,15 @@ def approve_customer_estimate(
             ).first()
             if db_item:
                 db_item.approval_status = item_data.approval_status
-                if item_data.approved_quantity is not None:
-                    db_item.approved_quantity = item_data.approved_quantity
-                elif item_data.approval_status == CustomerEstimateItemApprovalStatus.APPROVED:
-                    db_item.approved_quantity = db_item.quantity
-                elif item_data.approval_status == CustomerEstimateItemApprovalStatus.REJECTED:
-                    db_item.approved_quantity = 0
                 db.add(db_item)
 
     # Update overall status
-    db_estimate.approval_status = approval_data.overall_status
+    db_estimate.approval_status = approval_data.approval_status
     db_estimate.customer_comments = approval_data.customer_comments
-    if approval_data.overall_status in [EstimateApprovalStatus.APPROVED, EstimateApprovalStatus.PARTIALLY_APPROVED]:
+    if approval_data.approval_status in [EstimateApprovalStatus.APPROVED, EstimateApprovalStatus.PARTIALLY_APPROVED]:
         db_estimate.approved_at = utc_now()
         job.status = JobStatus.ESTIMATE_APPROVED
-    elif approval_data.overall_status == EstimateApprovalStatus.REJECTED:
+    elif approval_data.approval_status == EstimateApprovalStatus.REJECTED:
         job.status = JobStatus.ESTIMATE_REJECTED
 
     db.add(db_estimate)

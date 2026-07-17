@@ -114,7 +114,6 @@ export interface CustomerEstimateItem {
   unit_price: number;
   total_price: number;
   approval_status: 'pending' | 'approved' | 'rejected';
-  approved_quantity?: number;
   item_type: EstimateItemType;
   part_id?: number;
   item_comments?: string;

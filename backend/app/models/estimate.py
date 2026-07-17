@@ -143,7 +143,6 @@ class CustomerEstimateItem(Base):
     # Description (customer-friendly)
     description = Column(String(500), nullable=False)
     quantity = Column(Integer, default=1, nullable=False)
-    approved_quantity = Column(Integer, nullable=True)
     
     # Pricing
     unit_price = Column(Float, nullable=False)

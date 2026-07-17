@@ -22,7 +22,7 @@ export default function CustomerEstimateVerify() {
 
   const [approvalStatus, setApprovalStatus] = useState<OverallApprovalStatus>('approved');
   const [customerComments, setCustomerComments] = useState('');
-  const [itemApprovals, setItemApprovals] = useState<{ item_id: number; approval_status: ItemApprovalStatus; approved_quantity?: number }[]>([]);
+  const [itemApprovals, setItemApprovals] = useState<{ item_id: number; approval_status: ItemApprovalStatus }[]>([]);
 
   useEffect(() => {
     if (estimate?.items) {
@@ -31,8 +31,7 @@ export default function CustomerEstimateVerify() {
           .filter(item => item.id !== undefined)
           .map(item => ({
             item_id: item.id!,
-            approval_status: 'approved' as ItemApprovalStatus,
-            approved_quantity: item.quantity
+            approval_status: 'approved' as ItemApprovalStatus
           }))
       );
     }
@@ -42,12 +41,8 @@ export default function CustomerEstimateVerify() {
     if (itemApprovals.length > 0) {
       const hasApproved = itemApprovals.some(i => i.approval_status === 'approved');
       const hasRejected = itemApprovals.some(i => i.approval_status === 'rejected');
-      const hasPartialQuantity = estimate?.items?.some(item => {
-        const approval = itemApprovals.find(ia => ia.item_id === item.id);
-        return approval?.approval_status === 'approved' && approval.approved_quantity !== undefined && approval.approved_quantity < item.quantity;
-      });
 
-      if ((hasApproved && hasRejected) || hasPartialQuantity) {
+      if (hasApproved && hasRejected) {
         setApprovalStatus('partially_approved');
       } else if (hasRejected && !hasApproved) {
         setApprovalStatus('rejected');
@@ -55,7 +50,7 @@ export default function CustomerEstimateVerify() {
         setApprovalStatus('approved');
       }
     }
-  }, [itemApprovals, estimate]);
+  }, [itemApprovals]);
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,23 +86,12 @@ export default function CustomerEstimateVerify() {
     );
   };
 
-  const handleItemQuantityChange = (itemId: number, qty: number) => {
-    setItemApprovals(prev =>
-      prev.map(item =>
-        item.item_id === itemId ? { ...item, approved_quantity: qty } : item
-      )
-    );
-  };
-
   const handleApproveAll = () => {
-    setItemApprovals(prev => prev.map(item => {
-      const originalItem = estimate?.items?.find(i => i.id === item.item_id);
-      return { ...item, approval_status: 'approved', approved_quantity: originalItem?.quantity };
-    }));
+    setItemApprovals(prev => prev.map(item => ({ ...item, approval_status: 'approved' })));
   };
 
   const handleRejectAll = () => {
-    setItemApprovals(prev => prev.map(item => ({ ...item, approval_status: 'rejected', approved_quantity: 0 })));
+    setItemApprovals(prev => prev.map(item => ({ ...item, approval_status: 'rejected' })));
   };
 
   const handleSubmitResponse = async (e: React.FormEvent) => {
@@ -119,7 +103,7 @@ export default function CustomerEstimateVerify() {
 
     try {
       await customerEstimatesAPI.approve(estimateNumber, {
-        overall_status: approvalStatus,
+        approval_status: approvalStatus,
         customer_comments: customerComments,
         items: itemApprovals
       });
@@ -134,12 +118,11 @@ export default function CustomerEstimateVerify() {
 
   const approvedAmount = estimate?.items
     .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'approved')
-    .reduce((sum, item) => {
-      const approvedQty = itemApprovals.find(ia => ia.item_id === item.id)?.approved_quantity ?? item.quantity;
-      return sum + (item.unit_price * approvedQty);
-    }, 0) ?? 0;
+    .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
 
-  const rejectedAmount = (estimate?.total_amount || 0) - approvedAmount;
+  const rejectedAmount = estimate?.items
+    .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'rejected')
+    .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
 
   // ─── OTP Step ───────────────────────────────────────────────────────────────
   if (step === 'otp') {
@@ -347,56 +330,34 @@ export default function CustomerEstimateVerify() {
                             <p className="text-sm text-gray-600 mb-2">{item.item_comments}</p>
                           )}
                           <p className={`text-lg font-bold ${isApproved ? 'text-green-700' : isRejected ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                            {formatCurrency(item.unit_price * (isApproved ? (itemApproval?.approved_quantity ?? item.quantity) : isRejected ? 0 : item.quantity))}
+                            {formatCurrency(item.total_price)}
                             <span className="text-xs font-normal text-gray-500 ml-2">
-                              (Qty {isApproved ? (itemApproval?.approved_quantity ?? item.quantity) : isRejected ? 0 : item.quantity} × {formatCurrency((item.unit_price || 0))})
+                              (Qty {item.quantity} × {formatCurrency((item.unit_price || 0))})
                             </span>
                           </p>
                         </div>
 
-                        <div className="flex flex-col sm:items-end gap-3">
-                          <div className="flex items-center gap-4 sm:shrink-0 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
-                            <label className="flex items-center gap-2 text-sm font-medium text-green-700 cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`decision-${itemId}`}
-                                checked={isApproved}
-                                onChange={() => handleItemApprovalChange(itemId, 'approved')}
-                                className="h-4 w-4 text-green-600 focus:ring-green-500"
-                              />
-                              Approve
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-medium text-red-700 cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`decision-${itemId}`}
-                                checked={isRejected}
-                                onChange={() => handleItemApprovalChange(itemId, 'rejected')}
-                                className="h-4 w-4 text-red-600 focus:ring-red-500"
-                              />
-                              Reject
-                            </label>
-                          </div>
-                          
-                          {isApproved && item.quantity > 1 && (
-                            <div className="flex items-center gap-2 bg-green-50 p-2 rounded border border-green-200">
-                              <label className="text-xs font-medium text-green-800">Approved Qty:</label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={item.quantity}
-                                value={itemApproval?.approved_quantity ?? item.quantity}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value);
-                                  if (!isNaN(val) && val >= 1 && val <= item.quantity) {
-                                    handleItemQuantityChange(itemId, val);
-                                  }
-                                }}
-                                className="w-16 px-2 py-1 text-sm border border-green-300 rounded focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                              />
-                              <span className="text-xs text-green-700">of {item.quantity}</span>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-4 sm:shrink-0 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                          <label className="flex items-center gap-2 text-sm font-medium text-green-700 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`decision-${itemId}`}
+                              checked={isApproved}
+                              onChange={() => handleItemApprovalChange(itemId, 'approved')}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500"
+                            />
+                            Approve
+                          </label>
+                          <label className="flex items-center gap-2 text-sm font-medium text-red-700 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`decision-${itemId}`}
+                              checked={isRejected}
+                              onChange={() => handleItemApprovalChange(itemId, 'rejected')}
+                              className="h-4 w-4 text-red-600 focus:ring-red-500"
+                            />
+                            Reject
+                          </label>
                         </div>
                       </div>
                     </div>
