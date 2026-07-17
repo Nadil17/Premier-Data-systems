@@ -45,7 +45,7 @@ jobs:
             # 1. Deploy Frontend
             # ------------------------------------------
             sudo mkdir -p /var/www/html/frontend
-            sudo rm -rf /var/www/html/frontend/* || true
+            sudo bash -c "rm -rf /var/www/html/frontend/*" || true
             sudo cp -r $PROJECT_DIR/Frontend/dist/* /var/www/html/frontend/
 
             # ------------------------------------------
