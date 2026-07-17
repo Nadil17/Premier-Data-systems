@@ -1,0 +1,58 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main # This will trigger the deployment when you push to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Copy latest files to AWS server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          source: "."
+          target: "~/premier-data-systems"
+          # 'rm' is false by default so it won't delete .env or node_modules
+
+      - name: Install dependencies and Restart AWS Services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          script: |
+            PROJECT_DIR="~/premier-data-systems"
+            
+            # ------------------------------------------
+            # 1. Deploy Frontend
+            # ------------------------------------------
+            cd $PROJECT_DIR/Frontend
+            npm install
+            npm run build
+            
+            # Copy built frontend files to nginx directory
+            sudo rm -rf /var/www/html/frontend/* || true
+            sudo cp -r dist/* /var/www/html/frontend/
+
+            # ------------------------------------------
+            # 2. Deploy Backend
+            # ------------------------------------------
+            cd $PROJECT_DIR/backend
+            source venv/bin/activate
+            pip install -r requirements.txt
+            pm2 restart backend
+
+            # ------------------------------------------
+            # 3. Deploy WhatsApp Server
+            # ------------------------------------------
+            cd $PROJECT_DIR/whatsapp-server
+            npm install
+            pm2 restart whatsapp
