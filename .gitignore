@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+deploy.tar.gz
+deploy_backend.tar.gz
+backend.zip
+.DS_Store
