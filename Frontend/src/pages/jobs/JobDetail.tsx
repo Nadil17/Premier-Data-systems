@@ -271,8 +271,10 @@ const JobDetail: React.FC = () => {
   const hasUnreturnedRejectedParts = React.useMemo(() => {
     let unreturned = false;
     const rejectedParts = new Map<number, number>();
+    const approvedParts = new Map<number, number>();
 
     customerEstimates.forEach((estimate) => {
+      // Calculate rejected parts
       (estimate.items || []).forEach((item: any) => {
         if (item.approval_status === 'rejected' && item.item_type === 'part' && item.part_id) {
           rejectedParts.set(
@@ -281,6 +283,18 @@ const JobDetail: React.FC = () => {
           );
         }
       });
+
+      // Calculate approved parts
+      if (estimate.approval_status === 'approved' || estimate.approval_status === 'partially_approved') {
+        (estimate.items || []).forEach((item: any) => {
+          if (item.approval_status === 'approved' && item.item_type === 'part' && item.part_id) {
+            approvedParts.set(
+              item.part_id,
+              (approvedParts.get(item.part_id) || 0) + (item.quantity || 1)
+            );
+          }
+        });
+      }
     });
 
     if (rejectedParts.size === 0) return false;
@@ -305,7 +319,12 @@ const JobDetail: React.FC = () => {
     for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
       const returnedQty = returnedParts.get(partId) || 0;
       const issuedQty = issuedParts.get(partId) || 0;
-      const requiredReturnQty = Math.min(rejectedQty, issuedQty);
+      const approvedQty = approvedParts.get(partId) || 0;
+      
+      // The engineer only needs to return rejected parts if they hold more than the approved quantity
+      const excessHeldQty = Math.max(0, issuedQty - approvedQty);
+      const requiredReturnQty = Math.min(rejectedQty, excessHeldQty);
+      
       if (returnedQty < requiredReturnQty) {
         unreturned = true;
         break;
