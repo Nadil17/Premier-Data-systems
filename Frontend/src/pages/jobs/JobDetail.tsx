@@ -1448,17 +1448,19 @@ const JobDetail: React.FC = () => {
           onClose={() => setShowStatusModal(false)}
           onConfirm={handleConfirmStatusUpdate}
           item={selectedPartItem}
-          isAcceptedByCustomer={
-            selectedPartItem
-              ? customerEstimates.some((e) =>
-                (e.approval_status === 'approved' || e.approval_status === 'partially_approved') &&
-                e.items.some((i) =>
-                  i.approval_status === 'approved' &&
-                  i.item_type === 'part' &&
-                  i.part_id === selectedPartItem.part_id
-                )
-              )
-              : false
+          approvalState={
+            customerEstimates.length === 0
+              ? 'no_estimate'
+              : (selectedPartItem && customerEstimates.some((e) =>
+                  (e.approval_status === 'approved' || e.approval_status === 'partially_approved') &&
+                  e.items.some((i) =>
+                    i.approval_status === 'approved' &&
+                    i.item_type === 'part' &&
+                    i.part_id === selectedPartItem.part_id
+                  )
+                ))
+                  ? 'approved'
+                  : 'not_approved'
           }
         />
         <EngineerEstimateModal

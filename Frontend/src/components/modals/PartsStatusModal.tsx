@@ -15,7 +15,7 @@ interface PartsStatusModalProps {
         quantity_returned?: number;
         quantity_pending_return?: number;
     } | null;
-    isAcceptedByCustomer?: boolean;
+    approvalState?: 'approved' | 'not_approved' | 'no_estimate';
 }
 
 const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
@@ -23,7 +23,7 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
     onClose,
     onConfirm,
     item,
-    isAcceptedByCustomer,
+    approvalState = 'no_estimate',
 }) => {
     const [action, setAction] = useState<'used' | 'returned'>('used');
     const [quantity, setQuantity] = useState<number>(1);
@@ -32,9 +32,15 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             setQuantity(1);
-            setAction(isAcceptedByCustomer ? 'used' : 'returned');
+            if (approvalState === 'approved') {
+                setAction('used');
+            } else if (approvalState === 'not_approved') {
+                setAction('returned');
+            } else {
+                setAction('used');
+            }
         }
-    }, [isOpen, isAcceptedByCustomer]);
+    }, [isOpen, approvalState]);
 
     if (!isOpen || !item) return null;
 
@@ -84,8 +90,8 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
                     {/* Action Selection */}
                     <div>
                         <label className="label mb-3">Select Action</label>
-                        <div className="grid gap-4 grid-cols-1">
-                            {isAcceptedByCustomer ? (
+                        <div className={`grid gap-4 ${approvalState === 'no_estimate' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            {(approvalState === 'approved' || approvalState === 'no_estimate') && (
                                 <button
                                     type="button"
                                     onClick={() => setAction('used')}
@@ -97,7 +103,8 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
                                     <div className="font-semibold">Mark as Used</div>
                                     <div className="text-xs mt-1 opacity-75">Consumed in repair</div>
                                 </button>
-                            ) : (
+                            )}
+                            {(approvalState === 'not_approved' || approvalState === 'no_estimate') && (
                                 <button
                                     type="button"
                                     onClick={() => setAction('returned')}
