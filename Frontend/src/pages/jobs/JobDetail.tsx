@@ -405,10 +405,7 @@ const JobDetail: React.FC = () => {
                     <FileText className="h-3.5 w-3.5" /> Estimate
                   </button>
                 )}
-                {(job.status === 'assigned' ||
-                  job.status === 'in_progress' ||
-                  job.status === 'waiting_for_parts' ||
-                  job.status === 'repair_in_progress') && (
+                {job.status === 'repair_in_progress' && (
                     <button
                       onClick={() => setShowCompletionModal(true)}
                       disabled={job.has_pending_handover}
