@@ -308,6 +308,48 @@ const JobDetail: React.FC = () => {
     return unreturned;
   }, [customerEstimates, partsRequests]);
 
+  const hasUncollectedApprovedParts = React.useMemo(() => {
+    let uncollected = false;
+    const approvedParts = new Map<number, number>();
+
+    customerEstimates.forEach((estimate) => {
+      if (estimate.approval_status === 'approved' || estimate.approval_status === 'partially_approved') {
+        (estimate.items || []).forEach((item: any) => {
+          if (item.approval_status === 'approved' && item.item_type === 'part' && item.part_id) {
+            approvedParts.set(
+              item.part_id,
+              (approvedParts.get(item.part_id) || 0) + (item.quantity || 1)
+            );
+          }
+        });
+      }
+    });
+
+    if (approvedParts.size === 0) return false;
+
+    const issuedParts = new Map<number, number>();
+    partsRequests.forEach((request) => {
+      (request.items || []).forEach((item: any) => {
+        if (item.part_id && ['issued', 'used', 'return_requested', 'returned'].includes(item.status)) {
+          issuedParts.set(
+            item.part_id,
+            (issuedParts.get(item.part_id) || 0) + (item.quantity_issued || 0)
+          );
+        }
+      });
+    });
+
+    for (const [partId, approvedQty] of Array.from(approvedParts.entries())) {
+      const issuedQty = issuedParts.get(partId) || 0;
+      if (issuedQty < approvedQty) {
+        uncollected = true;
+        break;
+      }
+    }
+
+    return uncollected;
+  }, [customerEstimates, partsRequests]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -449,9 +491,9 @@ const JobDetail: React.FC = () => {
                 {job.status === 'repair_in_progress' && (
                     <button
                       onClick={() => setShowCompletionModal(true)}
-                      disabled={job.has_pending_handover || hasUnreturnedRejectedParts}
-                      title={job.has_pending_handover ? "Cannot complete job with pending parts handover" : hasUnreturnedRejectedParts ? "Cannot complete job until all rejected parts are returned" : ""}
-                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg flex items-center gap-1.5 ${job.has_pending_handover || hasUnreturnedRejectedParts ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      disabled={job.has_pending_handover || hasUnreturnedRejectedParts || hasUncollectedApprovedParts}
+                      title={job.has_pending_handover ? "Cannot complete job with pending parts handover" : hasUnreturnedRejectedParts ? "Cannot complete job until all rejected parts are returned" : hasUncollectedApprovedParts ? "Cannot complete job until all approved parts are collected from the store" : ""}
+                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg flex items-center gap-1.5 ${job.has_pending_handover || hasUnreturnedRejectedParts || hasUncollectedApprovedParts ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
                       <CheckCircle className="h-3.5 w-3.5" /> Complete
                     </button>
