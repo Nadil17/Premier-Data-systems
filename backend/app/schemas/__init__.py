@@ -32,7 +32,8 @@ from app.schemas.estimate import (
     EngineerEstimateItemCreate, EngineerEstimateItemResponse,
     CustomerEstimateCreate, CustomerEstimateUpdate, CustomerEstimateResponse,
     CustomerEstimateItemCreate, CustomerEstimateItemResponse,
-    CustomerEstimateApproval, OTPVerification, OTPVerificationResponse,
+    CustomerEstimateApprovalRequest, CustomerEstimateApprovalItem,
+    EstimateVerifyRequest, EstimateVerifyResponse,
     EstimateLinkResponse
 )
 from app.schemas.notification import (
@@ -64,7 +65,8 @@ __all__ = [
     "EngineerEstimateItemCreate", "EngineerEstimateItemResponse",
     "CustomerEstimateCreate", "CustomerEstimateUpdate", "CustomerEstimateResponse",
     "CustomerEstimateItemCreate", "CustomerEstimateItemResponse",
-    "CustomerEstimateApproval", "OTPVerification", "OTPVerificationResponse",
+    "CustomerEstimateApprovalRequest", "CustomerEstimateApprovalItem",
+    "EstimateVerifyRequest", "EstimateVerifyResponse",
     "EstimateLinkResponse",
     "NotificationCreate", "NotificationResponse",
     "NotificationMarkRead", "NotificationSummary",

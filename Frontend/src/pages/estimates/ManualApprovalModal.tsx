@@ -21,7 +21,7 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
   const [estimate, setEstimate] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [itemStatuses, setItemStatuses] = useState<Record<number, string>>({});
+  const [itemStatuses, setItemStatuses] = useState<Record<number, { status: string; quantity: number }>>({});
   const [comments, setComments] = useState('');
 
   useEffect(() => {
@@ -40,9 +40,9 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
       const data = await customerEstimatesAPI.getById(estimateId!);
       setEstimate(data);
       // Initialize statuses to what's already there or pending
-      const initial: Record<number, string> = {};
+      const initial: Record<number, { status: string; quantity: number }> = {};
       data.items?.forEach((item: any) => {
-        initial[item.id] = item.approval_status || 'pending';
+        initial[item.id] = { status: item.approval_status || 'pending', quantity: item.quantity };
       });
       setItemStatuses(initial);
     } catch (error) {
@@ -53,25 +53,46 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
     }
   };
 
-  const handleStatusChange = (itemId: number, status: string) => {
-    setItemStatuses(prev => ({ ...prev, [itemId]: status }));
+  const handleStatusChange = (itemId: number, status: string, itemQty?: number) => {
+    setItemStatuses(prev => ({ 
+      ...prev, 
+      [itemId]: { 
+        status, 
+        quantity: itemQty !== undefined ? itemQty : (prev[itemId]?.quantity || 1) 
+      } 
+    }));
+  };
+
+  const handleQuantityChange = (itemId: number, qty: number) => {
+    setItemStatuses(prev => ({ 
+      ...prev, 
+      [itemId]: { 
+        ...prev[itemId],
+        quantity: qty 
+      } 
+    }));
   };
 
   const handleSubmit = async () => {
     if (!estimateId) return;
     
     // Check if any items are pending
-    const hasPending = Object.values(itemStatuses).some(s => s === 'pending');
+    const hasPending = Object.values(itemStatuses).some(s => s.status === 'pending');
     if (hasPending) {
       toast.error('Please accept or reject all items before submitting');
       return;
     }
 
-    const hasApproved = Object.values(itemStatuses).some(s => s === 'approved');
-    const hasRejected = Object.values(itemStatuses).some(s => s === 'rejected');
+    const hasApproved = Object.values(itemStatuses).some(s => s.status === 'approved');
+    const hasRejected = Object.values(itemStatuses).some(s => s.status === 'rejected');
     
+    const hasPartialQuantity = estimate.items.some((item: any) => {
+      const state = itemStatuses[item.id];
+      return state?.status === 'approved' && state.quantity < item.quantity;
+    });
+
     let overall_status = 'approved';
-    if (hasApproved && hasRejected) {
+    if ((hasApproved && hasRejected) || hasPartialQuantity) {
       overall_status = 'partially_approved';
     } else if (!hasApproved && hasRejected) {
       overall_status = 'rejected';
@@ -80,9 +101,10 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
     const payload = {
       overall_status,
       customer_comments: comments,
-      items: Object.entries(itemStatuses).map(([id, status]) => ({
+      items: Object.entries(itemStatuses).map(([id, state]) => ({
         item_id: parseInt(id),
-        approval_status: status
+        approval_status: state.status,
+        approved_quantity: state.quantity
       }))
     };
 
@@ -141,7 +163,9 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {estimate.items?.map((item: any) => (
+                      {estimate.items?.map((item: any) => {
+                        const state = itemStatuses[item.id] || { status: 'pending', quantity: item.quantity };
+                        return (
                         <tr key={item.id}>
                           <td className="px-4 py-3 text-sm text-gray-900">
                             {item.description}
@@ -152,30 +176,51 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium text-right">
                             Rs. {item.total_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-3 flex justify-center gap-2">
-                            <button
-                              onClick={() => handleStatusChange(item.id, 'approved')}
-                              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 transition-colors ${
-                                itemStatuses[item.id] === 'approved' 
-                                  ? 'bg-green-100 text-green-800 ring-1 ring-green-600' 
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              <Check className="h-4 w-4" /> Accept
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(item.id, 'rejected')}
-                              className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 transition-colors ${
-                                itemStatuses[item.id] === 'rejected' 
-                                  ? 'bg-red-100 text-red-800 ring-1 ring-red-600' 
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              <XCircle className="h-4 w-4" /> Reject
-                            </button>
+                          <td className="px-4 py-3 flex flex-col items-center justify-center gap-2">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => handleStatusChange(item.id, 'approved', item.quantity)}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 transition-colors ${
+                                  state.status === 'approved' 
+                                    ? 'bg-green-100 text-green-800 ring-1 ring-green-600' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                <Check className="h-4 w-4" /> Accept
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(item.id, 'rejected', 0)}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1 transition-colors ${
+                                  state.status === 'rejected' 
+                                    ? 'bg-red-100 text-red-800 ring-1 ring-red-600' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                <XCircle className="h-4 w-4" /> Reject
+                              </button>
+                            </div>
+                            
+                            {state.status === 'approved' && item.quantity > 1 && (
+                              <div className="flex items-center gap-2 mt-2 bg-green-50 p-1.5 rounded border border-green-200">
+                                <label className="text-xs text-green-800 font-medium">Approve Qty:</label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={item.quantity}
+                                  value={state.quantity}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val) && val >= 1 && val <= item.quantity) {
+                                      handleQuantityChange(item.id, val);
+                                    }
+                                  }}
+                                  className="w-14 px-1 py-0.5 text-xs border border-green-300 rounded"
+                                />
+                              </div>
+                            )}
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>

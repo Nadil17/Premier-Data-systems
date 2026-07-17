@@ -321,6 +321,17 @@ const CustomerEstimateForm: React.FC = () => {
                           if (val) {
                             const selectedPart = allParts.find(p => p.id === val);
                             if (selectedPart) {
+                              const existingItemIndex = items.findIndex((it, i) => i !== index && it.part_id === selectedPart.id);
+                              if (existingItemIndex !== -1) {
+                                toast.success(`${selectedPart.name} is already in the estimate. We've incremented its quantity.`);
+                                const updatedItems = [...items];
+                                updatedItems[existingItemIndex].quantity += 1;
+                                // remove the current row because it's a duplicate
+                                updatedItems.splice(index, 1);
+                                setItems(updatedItems);
+                                return;
+                              }
+
                               const updatedItems = [...items];
                               updatedItems[index] = {
                                 ...updatedItems[index],

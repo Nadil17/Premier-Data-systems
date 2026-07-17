@@ -68,10 +68,10 @@ class CustomerEstimateItemResponse(CustomerEstimateItemBase):
     id: int
     estimate_id: int
     total_price: float
+    approved_quantity: Optional[int] = None
     approval_status: CustomerEstimateItemApprovalStatus
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
 
 class CustomerEstimateBase(BaseModel):
     special_notes: Optional[str] = None
@@ -92,7 +92,6 @@ class CustomerEstimateResponse(CustomerEstimateBase):
     accountant_id: int
     accountant_name: Optional[str] = None
     approval_status: EstimateApprovalStatus
-    customer_comments: Optional[str] = None
     approved_at: Optional[datetime] = None
     total_amount: float
     otp_generated_at: Optional[datetime] = None
@@ -102,21 +101,28 @@ class CustomerEstimateResponse(CustomerEstimateBase):
     items: List[CustomerEstimateItemResponse]
     model_config = ConfigDict(from_attributes=True)
 
+class CustomerEstimateCreateResponse(BaseModel):
+    success: bool
+    estimate: CustomerEstimateResponse
+    whatsapp_sent: bool
+    email_sent: bool
+    message: str
 
-class CustomerEstimateItemApprovalUpdate(BaseModel):
+class CustomerEstimateApprovalItem(BaseModel):
     item_id: int
     approval_status: CustomerEstimateItemApprovalStatus
+    approved_quantity: Optional[int] = None
 
-class CustomerEstimateApproval(BaseModel):
-    approval_status: EstimateApprovalStatus
+class CustomerEstimateApprovalRequest(BaseModel):
+    overall_status: EstimateApprovalStatus
     customer_comments: Optional[str] = None
-    items: Optional[List[CustomerEstimateItemApprovalUpdate]] = None
+    items: List[CustomerEstimateApprovalItem]
 
-class OTPVerification(BaseModel):
+class EstimateVerifyRequest(BaseModel):
     estimate_number: str
-    otp_code: str = Field(..., min_length=6, max_length=6)
+    otp_code: str
 
-class OTPVerificationResponse(BaseModel):
+class EstimateVerifyResponse(BaseModel):
     success: bool
     access_token: str
     estimate: CustomerEstimateResponse
@@ -140,6 +146,7 @@ class SendEmailResponse(BaseModel):
 class ManualApprovalItemData(BaseModel):
     item_id: int
     approval_status: CustomerEstimateItemApprovalStatus
+    approved_quantity: Optional[int] = None
 
 class ManualApprovalRequest(BaseModel):
     overall_status: EstimateApprovalStatus

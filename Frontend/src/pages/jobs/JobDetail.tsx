@@ -250,7 +250,7 @@ const JobDetail: React.FC = () => {
               )
             );
             if (!hasBeenRequested && item.part_id) {
-              unrequested.push({ part_id: item.part_id, quantity: item.quantity });
+              unrequested.push({ part_id: item.part_id, quantity: item.approved_quantity !== undefined ? item.approved_quantity : item.quantity });
             }
           });
       });
@@ -269,35 +269,32 @@ const JobDetail: React.FC = () => {
   };
 
   const hasUnreturnedRejectedParts = React.useMemo(() => {
-    let unreturned = false;
-    const rejectedParts = new Map<number, number>();
+    // If there's no customer estimate yet, we cannot definitively say parts are rejected.
+    // The user should not be forced to return parts before an estimate is created or finalized.
+    if (!customerEstimates || customerEstimates.length === 0) {
+      return false;
+    }
+    
+    // If an estimate exists but is still pending, we don't know the final approved quantities yet.
+    const allPending = customerEstimates.every(e => e.approval_status === 'pending');
+    if (allPending) {
+      return false;
+    }
+
     const approvedParts = new Map<number, number>();
 
     customerEstimates.forEach((estimate) => {
-      // Calculate rejected parts
-      (estimate.items || []).forEach((item: any) => {
-        if (item.approval_status === 'rejected' && item.item_type === 'part' && item.part_id) {
-          rejectedParts.set(
-            item.part_id,
-            (rejectedParts.get(item.part_id) || 0) + (item.quantity || 1)
-          );
-        }
-      });
-
-      // Calculate approved parts
       if (estimate.approval_status === 'approved' || estimate.approval_status === 'partially_approved') {
         (estimate.items || []).forEach((item: any) => {
           if (item.approval_status === 'approved' && item.item_type === 'part' && item.part_id) {
             approvedParts.set(
               item.part_id,
-              (approvedParts.get(item.part_id) || 0) + (item.quantity || 1)
+              (approvedParts.get(item.part_id) || 0) + (item.approved_quantity !== undefined ? item.approved_quantity : (item.quantity || 1))
             );
           }
         });
       }
     });
-
-    if (rejectedParts.size === 0) return false;
 
     const returnedParts = new Map<number, number>();
     const issuedParts = new Map<number, number>();
@@ -316,16 +313,14 @@ const JobDetail: React.FC = () => {
       });
     });
 
-    for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
+    let unreturned = false;
+    for (const [partId, issuedQty] of Array.from(issuedParts.entries())) {
       const returnedQty = returnedParts.get(partId) || 0;
-      const issuedQty = issuedParts.get(partId) || 0;
       const approvedQty = approvedParts.get(partId) || 0;
       
-      // The engineer only needs to return rejected parts if they hold more than the approved quantity
       const excessHeldQty = Math.max(0, issuedQty - approvedQty);
-      const requiredReturnQty = Math.min(rejectedQty, excessHeldQty);
       
-      if (returnedQty < requiredReturnQty) {
+      if (returnedQty < excessHeldQty) {
         unreturned = true;
         break;
       }
@@ -344,7 +339,7 @@ const JobDetail: React.FC = () => {
           if (item.approval_status === 'approved' && item.item_type === 'part' && item.part_id) {
             approvedParts.set(
               item.part_id,
-              (approvedParts.get(item.part_id) || 0) + (item.quantity || 1)
+              (approvedParts.get(item.part_id) || 0) + (item.approved_quantity !== undefined ? item.approved_quantity : (item.quantity || 1))
             );
           }
         });
