@@ -43,7 +43,9 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
     // but based on JobDetail.tsx usage, it matches the API response structure.
     // We need to be careful with null/undefined values.
     const pendingReturn = item.quantity_pending_return || 0;
-    const available = (item.quantity_issued || 0) - (item.quantity_used || 0) - (item.quantity_returned || 0) - pendingReturn;
+    const availableForUse = (item.quantity_issued || 0) - (item.quantity_used || 0) - (item.quantity_returned || 0) - pendingReturn;
+    const availableForReturn = (item.quantity_issued || 0) - (item.quantity_returned || 0) - pendingReturn;
+    const available = action === 'used' ? availableForUse : availableForReturn;
 
     const handleSubmit = async () => {
         if (quantity <= 0 || quantity > available) return;
