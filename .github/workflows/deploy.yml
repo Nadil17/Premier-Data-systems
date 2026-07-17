@@ -3,7 +3,7 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main # This will trigger the deployment when you push to the 'main' branch
+      - main
 
 jobs:
   deploy:
@@ -11,6 +11,17 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        working-directory: ./Frontend
+        run: |
+          npm install
+          npm run build
 
       - name: Copy latest files to AWS server
         uses: appleboy/scp-action@v0.1.7
@@ -20,7 +31,6 @@ jobs:
           key: ${{ secrets.AWS_SSH_KEY }}
           source: "."
           target: "~/premier-data-systems"
-          # 'rm' is false by default so it won't delete .env or node_modules
 
       - name: Install dependencies and Restart AWS Services
         uses: appleboy/ssh-action@v1.0.3
@@ -34,13 +44,9 @@ jobs:
             # ------------------------------------------
             # 1. Deploy Frontend
             # ------------------------------------------
-            cd $PROJECT_DIR/Frontend
-            npm install
-            npm run build
-            
-            # Copy built frontend files to nginx directory
+            sudo mkdir -p /var/www/html/frontend
             sudo rm -rf /var/www/html/frontend/* || true
-            sudo cp -r dist/* /var/www/html/frontend/
+            sudo cp -r $PROJECT_DIR/Frontend/dist/* /var/www/html/frontend/
 
             # ------------------------------------------
             # 2. Deploy Backend
