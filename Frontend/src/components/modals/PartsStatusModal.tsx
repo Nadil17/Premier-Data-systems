@@ -84,8 +84,8 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
                     {/* Action Selection */}
                     <div>
                         <label className="label mb-3">Select Action</label>
-                        <div className={`grid gap-4 ${!isAcceptedByCustomer ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                            {isAcceptedByCustomer && (
+                        <div className="grid gap-4 grid-cols-1">
+                            {isAcceptedByCustomer ? (
                                 <button
                                     type="button"
                                     onClick={() => setAction('used')}
@@ -97,18 +97,19 @@ const PartsStatusModal: React.FC<PartsStatusModalProps> = ({
                                     <div className="font-semibold">Mark as Used</div>
                                     <div className="text-xs mt-1 opacity-75">Consumed in repair</div>
                                 </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setAction('returned')}
+                                    className={`p-4 rounded-lg border-2 text-center transition-colors ${action === 'returned'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-800'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                >
+                                    <div className="font-semibold">Return to Store</div>
+                                    <div className="text-xs mt-1 opacity-75">Unused / Defective</div>
+                                </button>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setAction('returned')}
-                                className={`p-4 rounded-lg border-2 text-center transition-colors ${action === 'returned'
-                                    ? 'border-blue-600 bg-blue-50 text-blue-800'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                            >
-                                <div className="font-semibold">Return to Store</div>
-                                <div className="text-xs mt-1 opacity-75">Unused / Defective</div>
-                            </button>
                         </div>
                     </div>
 
