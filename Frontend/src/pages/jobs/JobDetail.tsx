@@ -533,6 +533,30 @@ const JobDetail: React.FC = () => {
               )}
           </div>
         </div>
+
+        {isAssignedEngineer && job.status === 'repair_in_progress' && (job.has_pending_handover || hasUnreturnedRejectedParts || hasUncollectedApprovedParts) && (
+          <div className="mb-4 space-y-2">
+            {job.has_pending_handover && (
+              <div className="p-3 bg-yellow-50 text-yellow-700 text-sm border border-yellow-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <strong>Action Required:</strong> Cannot complete job because there is a pending parts handover.
+              </div>
+            )}
+            {hasUnreturnedRejectedParts && (
+              <div className="p-3 bg-red-50 text-red-700 text-sm border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <strong>Action Required:</strong> Cannot complete job until all rejected parts are returned to the store.
+              </div>
+            )}
+            {hasUncollectedApprovedParts && (
+              <div className="p-3 bg-red-50 text-red-700 text-sm border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <strong>Action Required:</strong> Cannot complete job until all approved parts are collected from the store.
+              </div>
+            )}
+          </div>
+        )}
+
         <PartsHandoverSection
           job={job}
           handovers={handovers}
