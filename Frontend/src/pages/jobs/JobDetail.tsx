@@ -311,6 +311,47 @@ const JobDetail: React.FC = () => {
     })
   );
 
+  const hasUnreturnedRejectedParts = React.useMemo(() => {
+    let unreturned = false;
+    const rejectedParts = new Map<number, number>();
+
+    customerEstimates.forEach((estimate) => {
+      (estimate.items || []).forEach((item: any) => {
+        if (item.approval_status === 'rejected' && item.item_type === 'part' && item.part_id) {
+          rejectedParts.set(
+            item.part_id,
+            (rejectedParts.get(item.part_id) || 0) + (item.quantity || 1)
+          );
+        }
+      });
+    });
+
+    if (rejectedParts.size === 0) return false;
+
+    const returnedParts = new Map<number, number>();
+    partsRequests.forEach((request) => {
+      (request.items || []).forEach((item: any) => {
+        if (item.part_id) {
+          returnedParts.set(
+            item.part_id,
+            (returnedParts.get(item.part_id) || 0) + (item.quantity_returned || 0) + (item.quantity_pending_return || 0)
+          );
+        }
+      });
+    });
+
+    for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
+      const returnedQty = returnedParts.get(partId) || 0;
+      if (returnedQty < rejectedQty) {
+        unreturned = true;
+        break;
+      }
+    }
+
+    return unreturned;
+  }, [customerEstimates, partsRequests]);
+
+
   const canSeeCustomerEstimate = user?.role !== 'engineer' || ['repair_in_progress', 'completed', 'waiting_for_accountant_review', 'ready_for_delivery', 'delivered'].includes(job.status);
   const showPrices = user?.role !== 'engineer';
 
@@ -408,9 +449,9 @@ const JobDetail: React.FC = () => {
                 {job.status === 'repair_in_progress' && (
                     <button
                       onClick={() => setShowCompletionModal(true)}
-                      disabled={job.has_pending_handover}
-                      title={job.has_pending_handover ? "Cannot complete job with pending parts handover" : ""}
-                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg flex items-center gap-1.5 ${job.has_pending_handover ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      disabled={job.has_pending_handover || hasUnreturnedRejectedParts}
+                      title={job.has_pending_handover ? "Cannot complete job with pending parts handover" : hasUnreturnedRejectedParts ? "Cannot complete job until all rejected parts are returned" : ""}
+                      className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg flex items-center gap-1.5 ${job.has_pending_handover || hasUnreturnedRejectedParts ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
                       <CheckCircle className="h-3.5 w-3.5" /> Complete
                     </button>
