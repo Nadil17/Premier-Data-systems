@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           source: "."
-          target: "~/premier-data-systems"
+          target: "/home/ubuntu/premier-data-systems"
 
       - name: Install dependencies and Restart AWS Services
         uses: appleboy/ssh-action@v1.0.3
@@ -39,7 +39,7 @@ jobs:
           username: ${{ secrets.AWS_USERNAME }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            PROJECT_DIR="~/premier-data-systems"
+            PROJECT_DIR="/home/ubuntu/premier-data-systems"
             
             # ------------------------------------------
             # 1. Deploy Frontend
