@@ -268,6 +268,46 @@ const JobDetail: React.FC = () => {
     }
   };
 
+  const hasUnreturnedRejectedParts = React.useMemo(() => {
+    let unreturned = false;
+    const rejectedParts = new Map<number, number>();
+
+    customerEstimates.forEach((estimate) => {
+      (estimate.items || []).forEach((item: any) => {
+        if (item.approval_status === 'rejected' && item.item_type === 'part' && item.part_id) {
+          rejectedParts.set(
+            item.part_id,
+            (rejectedParts.get(item.part_id) || 0) + (item.quantity || 1)
+          );
+        }
+      });
+    });
+
+    if (rejectedParts.size === 0) return false;
+
+    const returnedParts = new Map<number, number>();
+    partsRequests.forEach((request) => {
+      (request.items || []).forEach((item: any) => {
+        if (item.part_id) {
+          returnedParts.set(
+            item.part_id,
+            (returnedParts.get(item.part_id) || 0) + (item.quantity_returned || 0) + (item.quantity_pending_return || 0)
+          );
+        }
+      });
+    });
+
+    for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
+      const returnedQty = returnedParts.get(partId) || 0;
+      if (returnedQty < rejectedQty) {
+        unreturned = true;
+        break;
+      }
+    }
+
+    return unreturned;
+  }, [customerEstimates, partsRequests]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -310,46 +350,6 @@ const JobDetail: React.FC = () => {
       return available > 0;
     })
   );
-
-  const hasUnreturnedRejectedParts = React.useMemo(() => {
-    let unreturned = false;
-    const rejectedParts = new Map<number, number>();
-
-    customerEstimates.forEach((estimate) => {
-      (estimate.items || []).forEach((item: any) => {
-        if (item.approval_status === 'rejected' && item.item_type === 'part' && item.part_id) {
-          rejectedParts.set(
-            item.part_id,
-            (rejectedParts.get(item.part_id) || 0) + (item.quantity || 1)
-          );
-        }
-      });
-    });
-
-    if (rejectedParts.size === 0) return false;
-
-    const returnedParts = new Map<number, number>();
-    partsRequests.forEach((request) => {
-      (request.items || []).forEach((item: any) => {
-        if (item.part_id) {
-          returnedParts.set(
-            item.part_id,
-            (returnedParts.get(item.part_id) || 0) + (item.quantity_returned || 0) + (item.quantity_pending_return || 0)
-          );
-        }
-      });
-    });
-
-    for (const [partId, rejectedQty] of Array.from(rejectedParts.entries())) {
-      const returnedQty = returnedParts.get(partId) || 0;
-      if (returnedQty < rejectedQty) {
-        unreturned = true;
-        break;
-      }
-    }
-
-    return unreturned;
-  }, [customerEstimates, partsRequests]);
 
 
   const canSeeCustomerEstimate = user?.role !== 'engineer' || ['repair_in_progress', 'completed', 'waiting_for_accountant_review', 'ready_for_delivery', 'delivered'].includes(job.status);
