@@ -6,3 +6,7 @@ deploy.tar.gz
 deploy_backend.tar.gz
 backend.zip
 .DS_Store
+*.gz
+*.sh
+*.pem
+
