@@ -472,7 +472,13 @@ const JobDetail: React.FC = () => {
               onClick={() => window.print()}
               className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-1.5"
             >
-              <Printer className="h-3.5 w-3.5" /> Print
+              <Printer className="h-3.5 w-3.5" /> Print Report
+            </button>
+            <button
+              onClick={() => window.open(`/jobs/${job.id}/print-note`, '_blank')}
+              className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center gap-1.5"
+            >
+              <Receipt className="h-3.5 w-3.5" /> Print Job Note
             </button>
             {isAssignedEngineer && (
               <>

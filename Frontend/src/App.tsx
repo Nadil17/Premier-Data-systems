@@ -14,6 +14,7 @@ import CustomerDetail from './pages/customers/CustomerDetail';
 import JobList from './pages/jobs/JobList';
 import JobForm from './pages/jobs/JobForm';
 import JobDetail from './pages/jobs/JobDetail';
+import JobNotePrint from './pages/jobs/JobNotePrint';
 
 // Parts pages
 import PartsList from './pages/parts/PartsList';
@@ -158,6 +159,14 @@ function App() {
               <MainLayout>
                 <JobDetail />
               </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/jobs/:id/print-note"
+          element={
+            <ProtectedRoute>
+              <JobNotePrint />
             </ProtectedRoute>
           }
         />
