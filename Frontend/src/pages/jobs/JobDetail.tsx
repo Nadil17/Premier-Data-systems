@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import PartsHandoverSection from '../../components/jobs/PartsHandoverSection';
 import PrintableJobDetail from '../../components/jobs/PrintableJobDetail';
+import JobNotePrint from './JobNotePrint';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import StatusBadge from '../../components/common/StatusBadge';
 import PartsRequestModal from '../../components/modals/PartsRequestModal';
@@ -61,6 +62,7 @@ const JobDetail: React.FC = () => {
   const [handovers, setHandovers] = useState<PartsHandoverResponse[]>([]);
   const [sendingStatus, setSendingStatus] = useState<Record<string, boolean>>({});
   const [manualApproveId, setManualApproveId] = useState<number | null>(null);
+  const [printMode, setPrintMode] = useState<'report' | 'note' | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -469,13 +471,19 @@ const JobDetail: React.FC = () => {
           {/* Header actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                setPrintMode('report');
+                setTimeout(() => window.print(), 100);
+              }}
               className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-1.5"
             >
               <Printer className="h-3.5 w-3.5" /> Print Report
             </button>
             <button
-              onClick={() => window.open(`/jobs/${job.id}/print-note`, '_blank')}
+              onClick={() => {
+                setPrintMode('note');
+                setTimeout(() => window.print(), 100);
+              }}
               className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center gap-1.5"
             >
               <Receipt className="h-3.5 w-3.5" /> Print Job Note
@@ -1518,12 +1526,18 @@ const JobDetail: React.FC = () => {
         />
       </div>
 
-      <PrintableJobDetail
-        job={job}
-        customerEstimates={customerEstimates}
-        partsRequests={partsRequests}
-        handovers={handovers}
-      />
+      {printMode === 'report' && (
+        <PrintableJobDetail
+          job={job}
+          customerEstimates={customerEstimates}
+          partsRequests={partsRequests}
+          handovers={handovers}
+        />
+      )}
+      
+      {printMode === 'note' && (
+        <JobNotePrint job={job} />
+      )}
     </>
   );
 };

@@ -1,47 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { jobsAPI } from '../../api/endpoints';
+import React from 'react';
 import type { Job } from '../../types';
-import { formatDateTime } from '../../utils/formatters';
 
-const JobNotePrint: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const [job, setJob] = useState<Job | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+interface JobNotePrintProps {
+  job: Job;
+}
 
-  useEffect(() => {
-    // Automatically trigger print dialog when loaded, but wait a bit for rendering
-    if (job) {
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    }
-  }, [job]);
-
-  useEffect(() => {
-    const fetchJob = async () => {
-      try {
-        if (id) {
-          const data = await jobsAPI.getById(Number(id));
-          setJob(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch job details for printing:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchJob();
-  }, [id]);
-
-  if (isLoading) {
-    return <div className="p-8">Loading...</div>;
-  }
-
-  if (!job) {
-    return <div className="p-8">Job not found</div>;
-  }
-
+const JobNotePrint: React.FC<JobNotePrintProps> = ({ job }) => {
   const currentDate = new Date();
   const formattedDateTime = currentDate.toLocaleString('en-GB', {
     day: '2-digit',
@@ -55,109 +19,123 @@ const JobNotePrint: React.FC = () => {
   const displayCustomerAddress = job.customer?.address?.trim() || '';
 
   return (
-    <div className="bg-white text-black min-h-screen">
-      <div className="max-w-[210mm] mx-auto p-8 pt-4 pb-4">
-        
-        {/* Top bar with date and title */}
-        <div className="flex justify-between items-center text-xs text-gray-600 mb-4 font-sans">
-          <span>{formattedDateTime}</span>
-          <span>Smart Dashboard - ERP</span>
-          <span className="w-[100px]"></span> {/* Spacer to center the title */}
+    <div className="hidden print:block w-[210mm] mx-auto bg-white text-black font-sans text-sm py-4 px-6">
+      {/* Top bar */}
+      <div className="flex justify-between items-center text-xs text-gray-700 mb-4">
+        <span className="w-1/3">{formattedDateTime}</span>
+        <span className="w-1/3 text-center">Smart Dashboard - ERP</span>
+        <span className="w-1/3"></span>
+      </div>
+
+      {/* Header Info */}
+      <div className="flex justify-between items-start mb-2">
+        <div className="w-1/2">
+          <img src="/logo.jpg" alt="Premier Data Systems Logo" className="h-16 object-contain" />
+        </div>
+        <div className="w-1/2 text-right text-[13px] leading-snug">
+          <p>No. 17A, Mudali Mawatha, Kohuwala, Sri Lanka</p>
+          <p>Tel: +94 11 2815015</p>
+          <p>Fax: 94 11 7396803</p>
+          <p>Email: support@premier.lk</p>
+          <p>Web:</p>
+        </div>
+      </div>
+
+      <div className="border-t-[2px] border-black my-4"></div>
+
+      {/* Job Info */}
+      <div className="flex flex-col gap-6 text-[13px]">
+        {/* Row 1 */}
+        <div className="flex justify-between">
+          <div className="flex flex-1 pr-4">
+            <span className="font-bold w-24 flex-shrink-0">Cust:</span>
+            <span>
+              {displayCustomerName}
+              {displayCustomerAddress && ` (${displayCustomerAddress})`}
+            </span>
+          </div>
+          <div className="flex justify-end w-48 flex-shrink-0">
+            <span className="font-bold mr-6">Date:</span>
+            <span className="whitespace-nowrap">
+              {job.created_at ? new Date(job.created_at).toISOString().split('T')[0] : ''}
+            </span>
+          </div>
         </div>
 
-        {/* Header with Logo and Company Info */}
-        <div className="flex justify-between items-start mb-6">
-          <div className="w-1/2">
-            <img src="/logo.jpg" alt="Premier Data Systems Logo" className="h-16 object-contain" />
+        {/* Row 2 */}
+        <div className="flex justify-between">
+          <div className="flex flex-1 pr-4">
+            <span className="font-bold w-24 flex-shrink-0">Model:</span>
+            <span className="line-clamp-1">{job.machine_model || job.model_name || '-'}</span>
           </div>
-          <div className="w-1/2 text-right text-sm leading-tight space-y-1">
-            <p>No. 17A, Mudali Mawatha, Kohuwala, Sri Lanka</p>
-            <p>Tel: +94 11 2815015</p>
-            <p>Fax: 94 11 7396803</p>
-            <p>Email: support@premier.lk</p>
-            <p>Web:</p>
+          <div className="flex justify-start w-64 flex-shrink-0">
+            <span className="font-bold mr-6">Serial No:</span>
+            <span className="truncate">{job.serial_number || '-'}</span>
+          </div>
+          <div className="flex justify-end w-64 flex-shrink-0">
+            <span className="font-bold mr-6">Job No:</span>
+            <span className="whitespace-nowrap">{job.job_number}</span>
           </div>
         </div>
 
-        <div className="border-t-2 border-black mb-6"></div>
+        {/* Row 3 */}
+        <div className="flex">
+          <span className="font-bold w-24 flex-shrink-0">Fault:</span>
+          <span>{job.fault_description || '-'}</span>
+        </div>
 
-        {/* Job Info Grid */}
-        <div className="grid grid-cols-12 gap-y-4 text-sm font-sans mb-8">
-          {/* Row 1 */}
-          <div className="col-span-1 font-bold">Cust:</div>
-          <div className="col-span-8 pr-4">
-            {displayCustomerName}
-            {displayCustomerAddress && ` (${displayCustomerAddress})`}
-          </div>
-          <div className="col-span-1 font-bold">Date:</div>
-          <div className="col-span-2">
-            {job.created_at ? new Date(job.created_at).toISOString().split('T')[0] : ''}
-          </div>
-
-          {/* Row 2 */}
-          <div className="col-span-1 font-bold">Model:</div>
-          <div className="col-span-4 pr-4">{job.machine_model || job.model_name || '-'}</div>
-          <div className="col-span-1 font-bold">Serial No:</div>
-          <div className="col-span-3">{job.serial_number || '-'}</div>
-          <div className="col-span-1 font-bold whitespace-nowrap">Job No:</div>
-          <div className="col-span-2">{job.job_number}</div>
-
-          {/* Row 3 */}
-          <div className="col-span-1 font-bold">Fault:</div>
-          <div className="col-span-11 pr-4">{job.fault_description || '-'}</div>
-
-          {/* Row 4 */}
-          <div className="col-span-2 font-bold whitespace-nowrap">Item Taken:</div>
-          <div className="col-span-10 pr-4">
+        {/* Row 4 */}
+        <div className="flex">
+          <span className="font-bold w-24 flex-shrink-0 whitespace-nowrap">Item Taken:</span>
+          <span>
             {job.items && job.items.length > 0
               ? job.items.map((i) => `${i.item_name} (${i.quantity.toString().padStart(2, '0')})`).join(', ')
               : '-'}
+          </span>
+        </div>
+      </div>
+
+      <div className="border-t-[2px] border-black my-6"></div>
+
+      {/* Footer Area */}
+      <div className="flex justify-between items-start text-[13px]">
+        {/* Left Side */}
+        <div className="w-[55%] pr-8">
+          <div className="space-y-3 mb-16">
+            <p>* This receipt must produce for collection.</p>
+            <p>* NO responsibility for equipment not collected within one month.</p>
+            <p>* If the equipment is taken without repairs after estimation an inspection charge of Rs. 3000 will be charged.</p>
+          </div>
+          
+          <div className="space-y-3 pt-6">
+            <p>{job.assigned_to_name || '..........................................................'}</p>
+            <p className="font-bold">Premier Data Systems Pvt Ltd</p>
           </div>
         </div>
 
-        <div className="border-t-2 border-black mb-8"></div>
-
-        {/* Footer Area */}
-        <div className="flex justify-between items-start text-sm">
-          {/* Left Side - Terms */}
-          <div className="w-7/12 pr-4 space-y-4">
-            <div className="space-y-3">
-              <p>* This receipt must produce for collection.</p>
-              <p>* NO responsibility for equipment not collected within one month.</p>
-              <p>* If the equipment is taken without repairs after estimation an inspection charge of Rs. 3000 will be charged.</p>
-            </div>
-            
-            <div className="pt-8 space-y-2">
-              <p>Osiru..........................................................</p>
-              <p className="font-bold">Premier Data Systems Pvt Ltd</p>
-            </div>
+        {/* Right Side */}
+        <div className="w-[45%]">
+          <div className="mb-10">
+            <p className="mb-2">Customer</p>
+            <p>Signature................................................................</p>
           </div>
-
-          {/* Right Side - Signatures */}
-          <div className="w-5/12 space-y-6 pt-12">
-            <div>
-              <p className="mb-2">Customer</p>
-              <p>Signature......................................................................</p>
-            </div>
+          
+          <div>
+            <p className="font-bold mb-3">Handed Over To</p>
+            <p className="mb-8">Mr/Ms/Mrs....................................................................</p>
             
-            <div className="space-y-4 pt-4">
-              <p className="font-bold">Handed Over To</p>
-              <p>Mr/Ms/Mrs....................................................................................</p>
-              
-              <div className="flex justify-between items-end pt-4">
-                <div className="w-1/2">
-                  <p className="mb-2">Signature</p>
-                  <p>..........................................</p>
-                </div>
-                <div className="w-1/2">
-                  <p className="mb-2">Date</p>
-                  <p>..........................................</p>
-                </div>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="mb-3">Signature</p>
+                <p>.......................................</p>
+              </div>
+              <div className="text-right">
+                <p className="mb-3 text-left">Date</p>
+                <p>.......................................</p>
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
