@@ -16,6 +16,7 @@ const CustomerEstimateForm: React.FC = () => {
   const [engineerEstimate, setEngineerEstimate] = useState<EngineerEstimate | null>(null);
   const [items, setItems] = useState<CustomerEstimateItemForm[]>([]);
   const [specialNotes, setSpecialNotes] = useState('');
+  const [includeTax, setIncludeTax] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -111,8 +112,16 @@ const CustomerEstimateForm: React.FC = () => {
     setItems(updatedItems);
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  };
+
+  const calculateTaxAmount = () => {
+    return includeTax ? calculateSubtotal() * 0.18 : 0;
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTaxAmount();
   };
 
   const handleSubmit = async () => {
@@ -135,6 +144,7 @@ const CustomerEstimateForm: React.FC = () => {
       const estimateData = {
         job_id: parseInt(jobId!),
         special_notes: specialNotes.trim() || undefined,
+        include_tax: includeTax,
         items: items.map(item => ({
           item_type: item.item_type,
           part_id: item.part_id,
@@ -406,12 +416,43 @@ const CustomerEstimateForm: React.FC = () => {
           </div>
         )}
 
-        {/* Total */}
+        {/* Total & Tax Summary */}
         {items.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-gray-300">
-            <div className="flex justify-between items-center text-xl font-bold">
-              <span>Total Amount:</span>
-              <span className="text-blue-600">${calculateTotal().toFixed(2)}</span>
+          <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div>
+                <span className="font-semibold text-gray-800 text-sm">VAT Tax Option</span>
+                <p className="text-xs text-gray-500">Apply standard 18% VAT tax to this customer estimate</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeTax}
+                  onChange={(e) => setIncludeTax(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span className="ml-3 text-sm font-medium text-gray-900">
+                  {includeTax ? '18% VAT Applied' : 'No Tax'}
+                </span>
+              </label>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-xl space-y-2 border border-gray-200">
+              <div className="flex justify-between items-center text-sm text-gray-600">
+                <span>Subtotal:</span>
+                <span className="font-medium text-gray-900">${calculateSubtotal().toFixed(2)}</span>
+              </div>
+              {includeTax && (
+                <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
+                  <span>VAT (18%):</span>
+                  <span>+${calculateTaxAmount().toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-xl font-bold pt-2 border-t border-gray-200">
+                <span>Total Amount:</span>
+                <span className="text-blue-600">${calculateTotal().toFixed(2)}</span>
+              </div>
             </div>
           </div>
         )}

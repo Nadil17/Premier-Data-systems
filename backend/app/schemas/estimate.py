@@ -75,6 +75,7 @@ class CustomerEstimateItemResponse(CustomerEstimateItemBase):
 
 class CustomerEstimateBase(BaseModel):
     special_notes: Optional[str] = None
+    include_tax: bool = False
 
 class CustomerEstimateCreate(CustomerEstimateBase):
     job_id: int
@@ -94,6 +95,10 @@ class CustomerEstimateResponse(CustomerEstimateBase):
     approval_status: EstimateApprovalStatus
     customer_comments: Optional[str] = None
     approved_at: Optional[datetime] = None
+    subtotal: float = 0.0
+    include_tax: bool = False
+    tax_rate: float = 0.0
+    tax_amount: float = 0.0
     total_amount: float
     otp_generated_at: Optional[datetime] = None
     otp_verified: bool

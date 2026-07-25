@@ -44,6 +44,30 @@ def populate_cust_est(est):
     return est
 
 
+def recalculate_estimate_totals(db_estimate: CustomerEstimate):
+    status_str = db_estimate.approval_status.value if hasattr(db_estimate.approval_status, 'value') else str(db_estimate.approval_status)
+    if status_str == 'rejected':
+        db_estimate.subtotal = 0.0
+        db_estimate.tax_amount = 0.0
+        db_estimate.total_amount = 0.0
+    else:
+        if status_str == 'pending':
+            relevant_items = db_estimate.items
+        else:
+            relevant_items = [
+                item for item in db_estimate.items
+                if (item.approval_status.value if hasattr(item.approval_status, 'value') else str(item.approval_status)) == 'approved'
+            ]
+        
+        subtotal = sum(item.total_price for item in relevant_items)
+        db_estimate.subtotal = round(subtotal, 2)
+        if db_estimate.include_tax:
+            db_estimate.tax_amount = round(subtotal * 0.18, 2)
+        else:
+            db_estimate.tax_amount = 0.0
+        db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
+
+
 def populate_eng_est(est):
     if est:
         est.engineer_name = est.engineer.full_name if est.engineer else None
@@ -184,6 +208,8 @@ def create_customer_estimate(
 
     estimate_number = generate_customer_estimate_number()
     otp_code = generate_otp(6)
+    include_tax = estimate_in.include_tax
+    tax_rate = 18.0 if include_tax else 0.0
     
     db_estimate = CustomerEstimate(
         estimate_number=estimate_number,
@@ -194,15 +220,19 @@ def create_customer_estimate(
         otp_code=otp_code,
         otp_generated_at=utc_now(),
         otp_verified=False,
+        subtotal=0.0,
+        include_tax=include_tax,
+        tax_rate=tax_rate,
+        tax_amount=0.0,
         total_amount=0.0
     )
     db.add(db_estimate)
     db.flush()
 
-    total_amount = 0.0
+    subtotal = 0.0
     for item in estimate_in.items:
         item_total = item.quantity * item.unit_price
-        total_amount += item_total
+        subtotal += item_total
         db_item = CustomerEstimateItem(
             estimate_id=db_estimate.id,
             item_type=item.item_type,
@@ -216,7 +246,9 @@ def create_customer_estimate(
         )
         db.add(db_item)
 
-    db_estimate.total_amount = total_amount
+    db_estimate.subtotal = round(subtotal, 2)
+    db_estimate.tax_amount = round(subtotal * 0.18, 2) if include_tax else 0.0
+    db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
     
     # Update job status to WAITING_FOR_ESTIMATE_APPROVAL
     job.status = JobStatus.WAITING_FOR_ESTIMATE_APPROVAL
@@ -405,6 +437,8 @@ def manual_approve_estimate(
         job.status = JobStatus.ESTIMATE_APPROVED
     elif request.overall_status == EstimateApprovalStatus.REJECTED:
         job.status = JobStatus.ESTIMATE_REJECTED
+
+    recalculate_estimate_totals(db_estimate)
 
     db.add(db_estimate)
     db.add(job)
@@ -595,6 +629,8 @@ def approve_customer_estimate(
         job.status = JobStatus.ESTIMATE_APPROVED
     elif approval_data.approval_status == EstimateApprovalStatus.REJECTED:
         job.status = JobStatus.ESTIMATE_REJECTED
+
+    recalculate_estimate_totals(db_estimate)
 
     db.add(db_estimate)
     db.add(job)

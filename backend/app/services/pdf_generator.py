@@ -130,6 +130,22 @@ def generate_estimate_pdf(estimate, output_path: str):
             Paragraph(f"{item.total_price:,.2f}", right_align_style)
         ])
         
+    subtotal = getattr(estimate, 'subtotal', None) or estimate.total_amount
+    tax_amount = getattr(estimate, 'tax_amount', 0.0) or 0.0
+    include_tax = getattr(estimate, 'include_tax', False) or (tax_amount > 0)
+
+    if include_tax and tax_amount > 0:
+        table_data.append([
+            Paragraph("<b>Subtotal:</b>", bold_style),
+            "", "", "",
+            Paragraph(f"<b>LKR {subtotal:,.2f}</b>", right_align_bold)
+        ])
+        table_data.append([
+            Paragraph("<b>VAT (18%):</b>", bold_style),
+            "", "", "",
+            Paragraph(f"<b>LKR {tax_amount:,.2f}</b>", right_align_bold)
+        ])
+
     table_data.append([
         Paragraph("<b>Total Amount:</b>", bold_style),
         "", "", "",
@@ -137,15 +153,21 @@ def generate_estimate_pdf(estimate, output_path: str):
     ])
     
     items_table = Table(table_data, colWidths=[70, 210, 40, 100, 100])
-    items_table.setStyle(TableStyle([
+    table_styles = [
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#f3f4f6")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 6),
         ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('SPAN', (0, -1), (3, -1)),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#f3f4f6")),
-    ]))
+    ]
+
+    summary_rows_count = 3 if (include_tax and tax_amount > 0) else 1
+    total_rows = len(table_data)
+    for r_idx in range(total_rows - summary_rows_count, total_rows):
+        table_styles.append(('SPAN', (0, r_idx), (3, r_idx)))
+        table_styles.append(('BACKGROUND', (0, r_idx), (-1, r_idx), colors.HexColor("#f3f4f6")))
+
+    items_table.setStyle(TableStyle(table_styles))
     story.append(items_table)
     story.append(Spacer(1, 15))
     

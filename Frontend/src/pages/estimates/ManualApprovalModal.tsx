@@ -181,6 +181,34 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
                 </div>
               </div>
 
+              {/* Financial Summary */}
+              {(() => {
+                const hasTax = estimate.include_tax || (estimate.tax_amount ?? 0) > 0;
+                const acceptedItems = estimate.items?.filter((item: any) => itemStatuses[item.id] === 'approved') || [];
+                const subtotal = acceptedItems.reduce((sum: number, item: any) => sum + (item.total_price || 0), 0);
+                const taxAmount = hasTax ? subtotal * 0.18 : 0;
+                const totalAmount = subtotal + taxAmount;
+
+                return (
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                    <div className="flex justify-between items-center text-xs text-gray-600">
+                      <span>Accepted Subtotal:</span>
+                      <span className="font-semibold text-gray-900">Rs. {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {hasTax && (
+                      <div className="flex justify-between items-center text-xs text-blue-700 font-medium">
+                        <span>Accepted VAT (18%):</span>
+                        <span>+Rs. {taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-base font-bold pt-2 border-t border-gray-200">
+                      <span className="text-gray-900">Approved Total:</span>
+                      <span className="text-blue-600">Rs. {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Customer Comments / Internal Notes

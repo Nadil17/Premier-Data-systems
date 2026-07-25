@@ -133,6 +133,10 @@ export interface CustomerEstimate {
   special_notes?: string;
   accountant_name?: string;
   customer_comments?: string;
+  subtotal?: number;
+  include_tax?: boolean;
+  tax_rate?: number;
+  tax_amount?: number;
   total_amount: number;
   job_number?: string;
 }

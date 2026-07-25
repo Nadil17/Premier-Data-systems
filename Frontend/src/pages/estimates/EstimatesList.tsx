@@ -332,6 +332,11 @@ const EstimatesList: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
                           Rs. {estimate.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {estimate.include_tax && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                              +18% VAT
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <StatusBadge status={estimate.status} />

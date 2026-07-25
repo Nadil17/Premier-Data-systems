@@ -116,13 +116,20 @@ export default function CustomerEstimateVerify() {
     }
   };
 
-  const approvedAmount = estimate?.items
+  const hasTax = estimate?.include_tax || (estimate?.tax_amount ?? 0) > 0;
+  const taxRate = estimate?.tax_rate || 18.0;
+
+  const approvedSubtotal = estimate?.items
     .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'approved')
     .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
+  const approvedTax = hasTax ? approvedSubtotal * (taxRate / 100) : 0;
+  const approvedTotal = approvedSubtotal + approvedTax;
 
-  const rejectedAmount = estimate?.items
+  const rejectedSubtotal = estimate?.items
     .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'rejected')
     .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
+  const rejectedTax = hasTax ? rejectedSubtotal * (taxRate / 100) : 0;
+  const rejectedTotal = rejectedSubtotal + rejectedTax;
 
   // ─── OTP Step ───────────────────────────────────────────────────────────────
   if (step === 'otp') {
@@ -400,20 +407,30 @@ export default function CustomerEstimateVerify() {
                     {itemApprovals.filter(i => i.approval_status === 'rejected').length}
                   </span>
                 </div>
-                <div className="pt-3 mt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 font-medium">Original Total</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency(estimate.total_amount)}</span>
+                <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
+                  <div className="flex justify-between items-center text-sm text-gray-600">
+                    <span>Approved Subtotal</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(approvedSubtotal)}</span>
                   </div>
-                  {rejectedAmount > 0 && (
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-gray-600 text-sm">Rejected Amount</span>
-                      <span className="font-semibold text-red-600 text-sm">-{formatCurrency(rejectedAmount)}</span>
+                  {hasTax && (
+                    <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
+                      <span>VAT (18%)</span>
+                      <span className="font-semibold">{formatCurrency(approvedTax)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
-                    <span className="text-gray-900 font-bold">New Total</span>
-                    <span className="font-bold text-2xl text-green-700">{formatCurrency(approvedAmount)}</span>
+                  {rejectedTotal > 0 && (
+                    <div className="flex justify-between items-center text-xs text-red-600 pt-1 border-t border-gray-100">
+                      <span>Rejected Items (Inc. VAT)</span>
+                      <span className="font-semibold">-{formatCurrency(rejectedTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-xs text-gray-500 pt-1 border-t border-gray-100">
+                    <span>Original Estimate Total</span>
+                    <span>{formatCurrency(estimate.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
+                    <span className="text-gray-900 font-bold">New Approved Total</span>
+                    <span className="font-bold text-2xl text-green-700">{formatCurrency(approvedTotal)}</span>
                   </div>
                 </div>
               </div>

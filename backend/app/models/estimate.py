@@ -105,7 +105,11 @@ class CustomerEstimate(Base):
     # Special notes for customer
     special_notes = Column(Text)
     
-    # Total
+    # Total and Tax
+    subtotal = Column(Float, default=0.0)
+    include_tax = Column(Boolean, default=False)
+    tax_rate = Column(Float, default=0.0)
+    tax_amount = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
     
     # Timestamps
