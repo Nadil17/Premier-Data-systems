@@ -54,6 +54,7 @@ jobs:
             cd $PROJECT_DIR/Backend
             source venv/bin/activate
             pip install -r requirements.txt
+            python migrate_estimate_tax.py || true
             pm2 restart backend
 
             # ------------------------------------------
