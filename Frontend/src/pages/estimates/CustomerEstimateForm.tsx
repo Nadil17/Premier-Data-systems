@@ -52,6 +52,11 @@ const CustomerEstimateForm: React.FC = () => {
       const jobData = await jobsAPI.getById(parseInt(jobId!));
       setJob(jobData);
 
+      // Auto-detect if customer has a Tax Number
+      const customerTaxNum = jobData.customer?.tax_number?.trim() || jobData.customer?.vat_number?.trim();
+      const hasTaxNum = !!customerTaxNum;
+      setIncludeTax(hasTaxNum);
+
       // Load engineer estimate
       const estimates = await engineerEstimatesAPI.getByJob(parseInt(jobId!));
       if (estimates && estimates.length > 0) {
@@ -419,39 +424,45 @@ const CustomerEstimateForm: React.FC = () => {
         {/* Total & Tax Summary */}
         {items.length > 0 && (
           <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+            {/* Customer Tax Number Info Banner */}
+            <div className={`p-4 rounded-xl border flex items-center justify-between ${
+              includeTax
+                ? 'bg-blue-50 border-blue-200 text-blue-900'
+                : 'bg-gray-50 border-gray-200 text-gray-800'
+            }`}>
               <div>
-                <span className="font-semibold text-gray-800 text-sm">VAT Tax Option</span>
-                <p className="text-xs text-gray-500">Apply standard 18% VAT tax to this customer estimate</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeTax}
-                  onChange={(e) => setIncludeTax(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                <span className="ml-3 text-sm font-medium text-gray-900">
-                  {includeTax ? '18% VAT Applied' : 'No Tax'}
+                <span className="font-semibold text-sm">
+                  {includeTax
+                    ? `Tax Applied (Customer Tax No: ${job?.customer?.tax_number || job?.customer?.vat_number || 'Present'})`
+                    : 'Tax Included in Item Prices (Customer Has No Tax Number)'}
                 </span>
-              </label>
+                <p className="text-xs mt-0.5 opacity-80">
+                  {includeTax
+                    ? 'Customer has a Tax Number. 18% Tax Value is displayed as a separate line item.'
+                    : 'Customer does not have a Tax Number. Prices are inclusive of tax (no separate Tax Value displayed).'}
+                </p>
+              </div>
+              <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                includeTax ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+              }`}>
+                {includeTax ? '18% Tax Separate' : 'Tax Included'}
+              </span>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-xl space-y-2 border border-gray-200">
               <div className="flex justify-between items-center text-sm text-gray-600">
                 <span>Subtotal:</span>
-                <span className="font-medium text-gray-900">${calculateSubtotal().toFixed(2)}</span>
+                <span className="font-medium text-gray-900">Rs. {calculateSubtotal().toFixed(2)}</span>
               </div>
               {includeTax && (
                 <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
-                  <span>VAT (18%):</span>
-                  <span>+${calculateTaxAmount().toFixed(2)}</span>
+                  <span>Tax Value (18%):</span>
+                  <span>+Rs. {calculateTaxAmount().toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xl font-bold pt-2 border-t border-gray-200">
                 <span>Total Amount:</span>
-                <span className="text-blue-600">${calculateTotal().toFixed(2)}</span>
+                <span className="text-blue-600">Rs. {calculateTotal().toFixed(2)}</span>
               </div>
             </div>
           </div>

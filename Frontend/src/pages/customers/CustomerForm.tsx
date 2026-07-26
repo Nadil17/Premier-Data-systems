@@ -17,6 +17,7 @@ interface CustomerFormData {
   phone_3?: string;
   email?: string;
   category: 'individual' | 'company' | 'dealer';
+  tax_number?: string;
   vat_number?: string;
   website?: string;
   remarks?: string;
@@ -57,6 +58,7 @@ const CustomerForm: React.FC = () => {
         phone_3: customer.phone_3 || '',
         email: customer.email || '',
         category: customer.category,
+        tax_number: customer.tax_number || customer.vat_number || '',
         vat_number: customer.vat_number || '',
         website: customer.website || '',
         remarks: customer.remarks || '',
@@ -79,6 +81,7 @@ const CustomerForm: React.FC = () => {
         phone_2: data.phone_2 || undefined,
         phone_3: data.phone_3 || undefined,
         email: data.email || undefined,
+        tax_number: data.tax_number || undefined,
         vat_number: data.vat_number || undefined,
         website: data.website || undefined,
         remarks: data.remarks || undefined,
@@ -183,6 +186,22 @@ const CustomerForm: React.FC = () => {
                   />
                 </div>
               )}
+
+              <div>
+                <label htmlFor="tax_number" className="label font-semibold text-gray-800">
+                  Tax Number
+                </label>
+                <input
+                  type="text"
+                  id="tax_number"
+                  {...register('tax_number')}
+                  className="input border-blue-200 focus:border-blue-500"
+                  placeholder="Enter Tax Number (e.g. TAX-12345)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  If entered, 18% Tax Value will be displayed separately on estimates.
+                </p>
+              </div>
 
               {(category === 'company' || category === 'dealer') && (
                 <div>

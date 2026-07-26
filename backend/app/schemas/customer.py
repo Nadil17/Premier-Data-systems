@@ -11,6 +11,11 @@ from app.schemas.job import JobSummary
 # Base Customer Schema
 class CustomerBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
+
+
+# Base Customer Schema
+class CustomerBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
     company_name: Optional[str] = Field(None, max_length=255)
     address: Optional[str] = None
     phone_1: str = Field(..., min_length=7, max_length=20)
@@ -18,6 +23,7 @@ class CustomerBase(BaseModel):
     phone_3: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
     category: CustomerCategory
+    tax_number: Optional[str] = Field(None, max_length=50)
     vat_number: Optional[str] = Field(None, max_length=50)
     website: Optional[str] = Field(None, max_length=255)
     remarks: Optional[str] = None
@@ -38,6 +44,7 @@ class CustomerUpdate(BaseModel):
     phone_3: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
     category: Optional[CustomerCategory] = None
+    tax_number: Optional[str] = Field(None, max_length=50)
     vat_number: Optional[str] = Field(None, max_length=50)
     website: Optional[str] = Field(None, max_length=255)
     remarks: Optional[str] = None

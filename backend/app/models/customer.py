@@ -35,6 +35,7 @@ class Customer(Base):
     
     # Additional Information
     category = Column(Enum(CustomerCategory, values_callable=lambda e: [member.value for member in e]), nullable=False)
+    tax_number = Column(String(50))
     vat_number = Column(String(50))
     website = Column(String(255))
     remarks = Column(Text)

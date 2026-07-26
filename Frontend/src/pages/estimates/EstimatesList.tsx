@@ -16,6 +16,10 @@ interface CustomerEstimate {
   job_id: number;
   job_number?: string;
   customer_name?: string;
+  subtotal?: number;
+  include_tax?: boolean;
+  tax_rate?: number;
+  tax_amount?: number;
   total_amount: number;
   status: string;
   approval_status?: string;

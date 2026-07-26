@@ -208,7 +208,11 @@ def create_customer_estimate(
 
     estimate_number = generate_customer_estimate_number()
     otp_code = generate_otp(6)
-    include_tax = estimate_in.include_tax
+    
+    # Check if customer has a Tax Number
+    customer = job.customer if hasattr(job, 'customer') and job.customer else db.query(Customer).filter(Customer.id == job.customer_id).first()
+    has_tax_number = bool(customer and ((getattr(customer, 'tax_number', None) and customer.tax_number.strip()) or (getattr(customer, 'vat_number', None) and customer.vat_number.strip())))
+    include_tax = estimate_in.include_tax if (estimate_in.include_tax is not None and estimate_in.include_tax) else has_tax_number
     tax_rate = 18.0 if include_tax else 0.0
     
     db_estimate = CustomerEstimate(

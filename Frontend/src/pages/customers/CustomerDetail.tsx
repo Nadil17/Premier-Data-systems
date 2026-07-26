@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, MapPin, Building2, Globe, Edit, Wrench } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Building2, Globe, Edit, Wrench, FileText } from 'lucide-react';
 import { customersAPI } from '../../api/endpoints';
 import type { Customer, JobSummary } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -107,6 +107,17 @@ const CustomerDetail: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-500">Company Name</p>
                   <p className="text-base text-gray-900">{customer.company_name}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Tax Number */}
+            {(customer.tax_number || customer.vat_number) && (
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-blue-500 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-500">Tax Number</p>
+                  <p className="text-base font-semibold text-gray-900">{customer.tax_number || customer.vat_number}</p>
                 </div>
               </div>
             )}

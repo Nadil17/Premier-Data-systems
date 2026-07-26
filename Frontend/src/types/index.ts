@@ -29,6 +29,7 @@ export interface Customer {
   email?: string;
   address?: string;
   category?: string;
+  tax_number?: string;
   vat_number?: string;
   website?: string;
   remarks?: string;
