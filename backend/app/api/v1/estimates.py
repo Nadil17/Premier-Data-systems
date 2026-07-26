@@ -235,15 +235,18 @@ def create_customer_estimate(
 
     subtotal = 0.0
     for item in estimate_in.items:
-        item_total = item.quantity * item.unit_price
+        # If include_tax is False (customer has no Tax Number), item unit_price from frontend is already tax-inclusive (or unit_price * 1.18)
+        item_unit_price = round(item.unit_price, 2)
+        item_total = round(item.quantity * item_unit_price, 2)
         subtotal += item_total
+
         db_item = CustomerEstimateItem(
             estimate_id=db_estimate.id,
             item_type=item.item_type,
             part_id=item.part_id,
             description=item.description,
             quantity=item.quantity,
-            unit_price=item.unit_price,
+            unit_price=item_unit_price,
             total_price=item_total,
             item_comments=item.item_comments,
             approval_status=CustomerEstimateItemApprovalStatus.PENDING

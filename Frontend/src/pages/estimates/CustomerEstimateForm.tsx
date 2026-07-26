@@ -117,8 +117,16 @@ const CustomerEstimateForm: React.FC = () => {
     setItems(updatedItems);
   };
 
+  const getItemEffectiveUnitPrice = (item: CustomerEstimateItemForm) => {
+    return includeTax ? item.unit_price : Number((item.unit_price * 1.18).toFixed(2));
+  };
+
+  const getItemTotalPrice = (item: CustomerEstimateItemForm) => {
+    return item.quantity * getItemEffectiveUnitPrice(item);
+  };
+
   const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    return items.reduce((sum, item) => sum + getItemTotalPrice(item), 0);
   };
 
   const calculateTaxAmount = () => {
@@ -155,7 +163,7 @@ const CustomerEstimateForm: React.FC = () => {
           part_id: item.part_id,
           description: item.description,
           quantity: item.quantity,
-          unit_price: item.unit_price,
+          unit_price: getItemEffectiveUnitPrice(item),
           item_comments: item.item_comments || undefined,
         })),
       };
@@ -401,7 +409,7 @@ const CustomerEstimateForm: React.FC = () => {
                   {/* Total Price (calculated) */}
                   <div className="col-span-1">
                     <div className="input bg-gray-100 font-semibold text-xs py-1 px-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                      ${(item.quantity * item.unit_price).toFixed(2)}
+                      Rs. {getItemTotalPrice(item).toFixed(2)}
                     </div>
                   </div>
 
