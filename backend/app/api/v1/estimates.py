@@ -1,4 +1,8 @@
+import os
+import tempfile
+import io
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List
@@ -503,6 +507,97 @@ def get_customer_estimate_by_id(
     if not estimate:
         raise HTTPException(status_code=404, detail="Customer estimate not found")
     return populate_cust_est(estimate)
+
+
+@router.get("/customer/{id}/pdf")
+def download_customer_estimate_pdf(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download customer estimate PDF for accountants and authenticated users."""
+    estimate = (
+        db.query(CustomerEstimate)
+        .options(
+            joinedload(CustomerEstimate.items),
+            joinedload(CustomerEstimate.accountant),
+            joinedload(CustomerEstimate.job).joinedload(Job.customer)
+        )
+        .filter(CustomerEstimate.id == id)
+        .first()
+    )
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Customer estimate not found")
+
+    pdf_fd, pdf_path = tempfile.mkstemp(suffix=".pdf")
+    os.close(pdf_fd)
+
+    try:
+        generate_estimate_pdf(estimate, pdf_path)
+        filename = f"Estimate_{estimate.estimate_number}.pdf"
+        
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
+    except Exception as e:
+        logger.error(f"Error generating estimate PDF: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate estimate PDF")
+    finally:
+        if os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except Exception:
+                pass
+
+
+@router.get("/customer/verify/{estimate_number}/pdf")
+def download_public_customer_estimate_pdf(
+    estimate_number: str,
+    db: Session = Depends(get_db)
+):
+    """Download customer estimate PDF via estimate number (for public verification page)."""
+    estimate = (
+        db.query(CustomerEstimate)
+        .options(
+            joinedload(CustomerEstimate.items),
+            joinedload(CustomerEstimate.accountant),
+            joinedload(CustomerEstimate.job).joinedload(Job.customer)
+        )
+        .filter(CustomerEstimate.estimate_number == estimate_number)
+        .first()
+    )
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Customer estimate not found")
+
+    pdf_fd, pdf_path = tempfile.mkstemp(suffix=".pdf")
+    os.close(pdf_fd)
+
+    try:
+        generate_estimate_pdf(estimate, pdf_path)
+        filename = f"Estimate_{estimate.estimate_number}.pdf"
+
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
+    except Exception as e:
+        logger.error(f"Error generating estimate PDF: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate estimate PDF")
+    finally:
+        if os.path.exists(pdf_path):
+            try:
+                os.unlink(pdf_path)
+            except Exception:
+                pass
 
 
 @router.get("/job/{job_id}/engineer", response_model=List[EngineerEstimateResponse])

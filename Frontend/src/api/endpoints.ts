@@ -168,6 +168,10 @@ export const customerEstimatesAPI = {
   verifyOTP: (data: any) => api.post('/estimates/customer/verify', data),
   approve: (estimateNumber: string, data: any) =>
     api.post(`/estimates/customer/verify/${estimateNumber}/approve`, data),
+  downloadPdf: (id: number) =>
+    api.get(`/estimates/customer/${id}/pdf`, { responseType: 'blob' }),
+  downloadPublicPdf: (estimateNumber: string) =>
+    api.get(`/estimates/customer/verify/${estimateNumber}/pdf`, { responseType: 'blob' }),
 };
 
 // ─────────────────────────────────────────────────────────────

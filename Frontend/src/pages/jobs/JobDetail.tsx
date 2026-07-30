@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Phone, User, Wrench, Package, CheckCircle, XCircle, Clock,
   FileText, DollarSign, Box, Truck, Cpu, Tag, AlertCircle, ChevronRight, Printer, Receipt,
-  Mail, MessageSquare
+  Mail, MessageSquare, Download
 } from 'lucide-react';
 import { jobsAPI, usersAPI, engineerEstimatesAPI, customerEstimatesAPI, partsRequestsAPI, handoversAPI } from '../../api/endpoints';
 import type {
@@ -122,6 +122,8 @@ const JobDetail: React.FC = () => {
     }
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState<Record<number, boolean>>({});
+
   const handleSendEstimate = async (estimateId: number, type: 'email' | 'whatsapp') => {
     const statusKey = `${estimateId}-${type}`;
     setSendingStatus(prev => ({ ...prev, [statusKey]: true }));
@@ -133,6 +135,27 @@ const JobDetail: React.FC = () => {
       toast.error(getErrorMessage(error, `Failed to send estimate via ${type}`));
     } finally {
       setSendingStatus(prev => ({ ...prev, [statusKey]: false }));
+    }
+  };
+
+  const handleDownloadEstimatePdf = async (estimateId: number, estimateNumber: string) => {
+    setDownloadingPdf(prev => ({ ...prev, [estimateId]: true }));
+    try {
+      const response = await customerEstimatesAPI.downloadPdf(estimateId);
+      const url = window.URL.createObjectURL(new Blob([response], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Estimate_${estimateNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Estimate PDF downloaded');
+    } catch (error) {
+      console.error('Failed to download estimate PDF:', error);
+      toast.error('Failed to download estimate PDF');
+    } finally {
+      setDownloadingPdf(prev => ({ ...prev, [estimateId]: false }));
     }
   };
 
@@ -834,6 +857,19 @@ const JobDetail: React.FC = () => {
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleDownloadEstimatePdf(estimate.id, estimate.estimate_number)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                                disabled={downloadingPdf[estimate.id]}
+                                title="Download Estimate PDF"
+                              >
+                                {downloadingPdf[estimate.id] ? (
+                                  <LoadingSpinner size="sm" />
+                                ) : (
+                                  <Download className="h-3 w-3" />
+                                )}
+                                Download PDF
+                              </button>
                               {(user?.role === 'accountant' || user?.role === 'admin') && estimate.approval_status === 'pending' && (
                                 <div className="flex gap-2 mr-2">
                                   <button

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Package, Wrench, CheckCircle, AlertCircle } from 'lucide-react';
+import { Package, Wrench, CheckCircle, AlertCircle, Download, Printer } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { customerEstimatesAPI } from '../../api/endpoints';
 import type { CustomerEstimate } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { getErrorMessage } from '../../utils/apiErrors';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import CustomerEstimatePrint from './CustomerEstimatePrint';
 
 type ItemApprovalStatus = 'approved' | 'rejected';
 type OverallApprovalStatus = 'approved' | 'rejected' | 'partially_approved';
@@ -19,6 +20,27 @@ export default function CustomerEstimateVerify() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!estimateNumber) return;
+    setDownloadingPdf(true);
+    try {
+      const response = await customerEstimatesAPI.downloadPublicPdf(estimateNumber);
+      const url = window.URL.createObjectURL(new Blob([response], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Estimate_${estimateNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download estimate PDF:', error);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const [approvalStatus, setApprovalStatus] = useState<OverallApprovalStatus>('approved');
   const [customerComments, setCustomerComments] = useState('');
@@ -260,16 +282,35 @@ export default function CustomerEstimateVerify() {
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
               Repair Estimate #{estimate.estimate_number}
             </h1>
             <p className="text-gray-600 mt-1">Job #{estimate.job_number} • {formatDateTime(estimate.created_at)}</p>
           </div>
-          <span className="px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-            AWAITING RESPONSE
-          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm shadow-sm transition-colors"
+            >
+              {downloadingPdf ? <LoadingSpinner size="sm" /> : <Download className="w-4 h-4" />}
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold text-sm shadow-sm transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+            <span className="px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              AWAITING RESPONSE
+            </span>
+          </div>
         </div>
 
         {error && (
@@ -477,6 +518,7 @@ export default function CustomerEstimateVerify() {
 
         </div>
       </div>
+      <CustomerEstimatePrint estimate={estimate} />
     </div>
   );
 }

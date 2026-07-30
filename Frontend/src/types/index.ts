@@ -130,16 +130,19 @@ export interface CustomerEstimate {
   created_at: string;
   updated_at?: string;
   job_id?: number;
+  job_number?: string;
+  customer_name?: string;
   notes?: string;
   special_notes?: string;
   accountant_name?: string;
+  accountant?: any;
+  job?: Job;
   customer_comments?: string;
   subtotal?: number;
   include_tax?: boolean;
   tax_rate?: number;
   tax_amount?: number;
   total_amount: number;
-  job_number?: string;
 }
 
 export type EstimateItemType = 'part' | 'labor' | 'service' | 'other';

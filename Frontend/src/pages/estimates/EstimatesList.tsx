@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, FileText, Filter, Clock, Mail, MessageSquare, CheckCircle } from 'lucide-react';
+import { Search, FileText, Filter, Clock, Mail, MessageSquare, CheckCircle, Download } from 'lucide-react';
 import ManualApprovalModal from './ManualApprovalModal';
 import { customerEstimatesAPI, engineerEstimatesAPI } from '../../api/endpoints';
 import { useAuthStore } from '../../store/authStore';
@@ -88,6 +88,8 @@ const EstimatesList: React.FC = () => {
     }
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState<Record<number, boolean>>({});
+
   const handleSendEstimate = async (estimateId: number, type: 'email' | 'whatsapp') => {
     const statusKey = `${estimateId}-${type}`;
     setSendingStatus(prev => ({ ...prev, [statusKey]: true }));
@@ -99,6 +101,27 @@ const EstimatesList: React.FC = () => {
       toast.error(getErrorMessage(error, `Failed to send estimate via ${type}`));
     } finally {
       setSendingStatus(prev => ({ ...prev, [statusKey]: false }));
+    }
+  };
+
+  const handleDownloadPdf = async (estimateId: number, estimateNumber: string) => {
+    setDownloadingPdf(prev => ({ ...prev, [estimateId]: true }));
+    try {
+      const response = await customerEstimatesAPI.downloadPdf(estimateId);
+      const url = window.URL.createObjectURL(new Blob([response], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Estimate_${estimateNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Estimate PDF downloaded');
+    } catch (error) {
+      console.error('Failed to download estimate PDF:', error);
+      toast.error('Failed to download estimate PDF');
+    } finally {
+      setDownloadingPdf(prev => ({ ...prev, [estimateId]: false }));
     }
   };
 
@@ -355,6 +378,19 @@ const EstimatesList: React.FC = () => {
                           >
                             View Job
                           </Link>
+                          <button
+                            onClick={() => handleDownloadPdf(estimate.id, estimate.estimate_number)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                            disabled={downloadingPdf[estimate.id]}
+                            title="Download Estimate PDF"
+                          >
+                            {downloadingPdf[estimate.id] ? (
+                              <LoadingSpinner size="sm" />
+                            ) : (
+                              <Download className="h-3 w-3" />
+                            )}
+                            PDF
+                          </button>
                           {isAccountantOrAdmin && estimate.status === 'pending' && (
                             <>
                               <button
