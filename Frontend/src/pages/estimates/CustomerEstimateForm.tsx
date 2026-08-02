@@ -118,11 +118,11 @@ const CustomerEstimateForm: React.FC = () => {
   };
 
   const getItemEffectiveUnitPrice = (item: CustomerEstimateItemForm) => {
-    return includeTax ? item.unit_price : Number((item.unit_price * 1.18).toFixed(2));
+    return item.unit_price;
   };
 
   const getItemTotalPrice = (item: CustomerEstimateItemForm) => {
-    return item.quantity * getItemEffectiveUnitPrice(item);
+    return item.quantity * item.unit_price;
   };
 
   const calculateSubtotal = () => {
