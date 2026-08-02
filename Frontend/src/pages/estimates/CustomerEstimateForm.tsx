@@ -458,18 +458,20 @@ const CustomerEstimateForm: React.FC = () => {
             </div>
 
             <div className="bg-gray-50 p-4 rounded-xl space-y-2 border border-gray-200">
-              <div className="flex justify-between items-center text-sm text-gray-600">
-                <span>Subtotal:</span>
-                <span className="font-medium text-gray-900">Rs. {calculateSubtotal().toFixed(2)}</span>
-              </div>
               {includeTax && (
-                <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
-                  <span>Tax Value (18%):</span>
-                  <span>+Rs. {calculateTaxAmount().toFixed(2)}</span>
-                </div>
+                <>
+                  <div className="flex justify-between items-center text-sm text-gray-600">
+                    <span>Subtotal:</span>
+                    <span className="font-medium text-gray-900">Rs. {calculateSubtotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
+                    <span>Tax Value (18%):</span>
+                    <span>+Rs. {calculateTaxAmount().toFixed(2)}</span>
+                  </div>
+                </>
               )}
               <div className="flex justify-between items-center text-xl font-bold pt-2 border-t border-gray-200">
-                <span>Total Amount:</span>
+                <span>Total Amount{includeTax ? '' : ' (Tax Included)'}:</span>
                 <span className="text-blue-600">Rs. {calculateTotal().toFixed(2)}</span>
               </div>
             </div>

@@ -191,15 +191,17 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
 
                 return (
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                    <div className="flex justify-between items-center text-xs text-gray-600">
-                      <span>Accepted Subtotal:</span>
-                      <span className="font-semibold text-gray-900">Rs. {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
                     {hasTax && (
-                      <div className="flex justify-between items-center text-xs text-blue-700 font-medium">
-                        <span>Accepted VAT (18%):</span>
-                        <span>+Rs. {taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between items-center text-xs text-gray-600">
+                          <span>Accepted Subtotal:</span>
+                          <span className="font-semibold text-gray-900">Rs. {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-blue-700 font-medium">
+                          <span>Accepted VAT (18%):</span>
+                          <span>+Rs. {taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </>
                     )}
                     <div className="flex justify-between items-center text-base font-bold pt-2 border-t border-gray-200">
                       <span className="text-gray-900">Approved Total:</span>

@@ -947,7 +947,7 @@ const JobDetail: React.FC = () => {
                                     <td className="py-2 px-3 text-center">{item.quantity}</td>
                                     {showPrices && (
                                       <td className="py-2 px-3 text-right font-medium">
-                                        ${item.total_price.toFixed(2)}
+                                        Rs. {item.total_price.toFixed(2)}
                                       </td>
                                     )}
                                     <td className="py-2 px-3 text-center">
@@ -969,7 +969,7 @@ const JobDetail: React.FC = () => {
                                   </td>
                                   {showPrices && (
                                     <td className="py-2 px-3 text-right text-xs font-bold text-gray-900">
-                                      ${(estimate.items || []).reduce((s, i) => s + i.total_price, 0).toFixed(2)}
+                                      Rs. {estimate.total_amount.toFixed(2)}
                                     </td>
                                   )}
                                   <td />
@@ -986,21 +986,21 @@ const JobDetail: React.FC = () => {
                                   .map((i, idx) => (
                                     <div key={idx} className="flex justify-between text-xs text-green-700">
                                       <span>• {i.description} (×{i.quantity})</span>
-                                      {showPrices && <span className="font-medium">${i.total_price.toFixed(2)}</span>}
+                                      {showPrices && <span className="font-medium">Rs. {i.total_price.toFixed(2)}</span>}
                                     </div>
                                   ))}
-                                {showPrices && (
-                                  <div className="mt-1 pt-1 border-t border-green-200 flex justify-between text-xs font-semibold text-green-900">
-                                    <span>Approved Total:</span>
-                                    <span>
-                                      $
-                                      {estimate.items
-                                        .filter((i) => i.approval_status === 'approved')
-                                        .reduce((s, i) => s + i.total_price, 0)
-                                        .toFixed(2)}
-                                    </span>
-                                  </div>
-                                )}
+                                {showPrices && (() => {
+                                  const appSubtotal = estimate.items
+                                    .filter((i) => i.approval_status === 'approved')
+                                    .reduce((s, i) => s + i.total_price, 0);
+                                  const appTotal = estimate.include_tax ? appSubtotal * 1.18 : appSubtotal;
+                                  return (
+                                    <div className="mt-1 pt-1 border-t border-green-200 flex justify-between text-xs font-semibold text-green-900">
+                                      <span>Approved Total:</span>
+                                      <span>Rs. {appTotal.toFixed(2)}</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           {estimate.customer_comments && (

@@ -449,15 +449,17 @@ export default function CustomerEstimateVerify() {
                   </span>
                 </div>
                 <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
-                  <div className="flex justify-between items-center text-sm text-gray-600">
-                    <span>Approved Subtotal</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency(approvedSubtotal)}</span>
-                  </div>
                   {hasTax && (
-                    <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
-                      <span>VAT (18%)</span>
-                      <span className="font-semibold">{formatCurrency(approvedTax)}</span>
-                    </div>
+                    <>
+                      <div className="flex justify-between items-center text-sm text-gray-600">
+                        <span>Approved Subtotal</span>
+                        <span className="font-semibold text-gray-900">{formatCurrency(approvedSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm text-blue-700 font-medium">
+                        <span>VAT (18%)</span>
+                        <span className="font-semibold">{formatCurrency(approvedTax)}</span>
+                      </div>
+                    </>
                   )}
                   {rejectedTotal > 0 && (
                     <div className="flex justify-between items-center text-xs text-red-600 pt-1 border-t border-gray-100">
