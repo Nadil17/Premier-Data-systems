@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from app.models.job import JobType, JobCategory, JobStatus
 
 
