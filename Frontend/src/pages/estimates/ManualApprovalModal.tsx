@@ -183,7 +183,7 @@ const ManualApprovalModal: React.FC<ManualApprovalModalProps> = ({
 
               {/* Financial Summary */}
               {(() => {
-                const hasTax = estimate.include_tax || (estimate.tax_amount ?? 0) > 0;
+                const hasTax = estimate.include_tax === true;
                 const acceptedItems = estimate.items?.filter((item: any) => itemStatuses[item.id] === 'approved') || [];
                 const subtotal = acceptedItems.reduce((sum: number, item: any) => sum + (item.total_price || 0), 0);
                 const taxAmount = hasTax ? subtotal * 0.18 : 0;

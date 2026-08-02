@@ -138,7 +138,7 @@ export default function CustomerEstimateVerify() {
     }
   };
 
-  const hasTax = estimate?.include_tax || (estimate?.tax_amount ?? 0) > 0;
+  const hasTax = estimate?.include_tax === true;
   const taxRate = estimate?.tax_rate || 18.0;
 
   const approvedSubtotal = estimate?.items

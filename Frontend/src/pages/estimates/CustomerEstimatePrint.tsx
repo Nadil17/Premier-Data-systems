@@ -21,7 +21,7 @@ const CustomerEstimatePrint: React.FC<CustomerEstimatePrintProps> = ({ estimate 
 
   const subtotal = estimate.subtotal ?? estimate.total_amount;
   const taxAmount = estimate.tax_amount ?? 0;
-  const hasTax = estimate.include_tax || taxAmount > 0;
+  const hasTax = estimate.include_tax === true;
 
   const accountantName = estimate.accountant_name || estimate.accountant?.full_name || 'Lahiru .';
 

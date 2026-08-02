@@ -211,7 +211,7 @@ def generate_estimate_pdf(estimate, output_path: str):
         
     subtotal = getattr(estimate, 'subtotal', None) or estimate.total_amount
     tax_amount = getattr(estimate, 'tax_amount', 0.0) or 0.0
-    include_tax = getattr(estimate, 'include_tax', False) or (tax_amount > 0)
+    include_tax = getattr(estimate, 'include_tax', False)
 
     if include_tax and tax_amount > 0:
         table_data.append([
