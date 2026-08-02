@@ -485,7 +485,7 @@ async def mark_part_as_used(
             detail="Parts request item not found"
         )
     
-    available_to_use = item.quantity_issued - (item.quantity_used or 0) - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
+    available_to_use = (item.quantity_issued or 0) - (item.quantity_used or 0) - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
     if usage_data.quantity_used > available_to_use:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -516,7 +516,7 @@ async def return_unused_parts(
             detail="Parts request item not found"
         )
     
-    available_to_return = item.quantity_issued - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
+    available_to_return = (item.quantity_issued or 0) - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
     if return_data.quantity_returned > available_to_return:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -524,7 +524,7 @@ async def return_unused_parts(
         )
     
     # If returning parts that were marked as used, reduce quantity_used
-    unused_available = item.quantity_issued - (item.quantity_used or 0) - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
+    unused_available = (item.quantity_issued or 0) - (item.quantity_used or 0) - (item.quantity_returned or 0) - (item.quantity_pending_return or 0)
     if return_data.quantity_returned > unused_available:
         used_parts_to_return = return_data.quantity_returned - unused_available
         item.quantity_used = max(0, (item.quantity_used or 0) - used_parts_to_return)

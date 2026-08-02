@@ -88,7 +88,7 @@ export default function JobCompletionModal({
         // Initialize used parts details array
         const initialDetails: UsedPartDetail[] = [];
         if (data.used_parts_list) {
-          data.used_parts_list.forEach(part => {
+          data.used_parts_list.forEach((part: any) => {
             for (let i = 0; i < part.quantity_used; i++) {
               initialDetails.push({
                 part_id: part.part_id,
