@@ -873,6 +873,14 @@ const JobDetail: React.FC = () => {
                               {(user?.role === 'accountant' || user?.role === 'admin') && estimate.approval_status === 'pending' && (
                                 <div className="flex gap-2 mr-2">
                                   <button
+                                    onClick={() => navigate(`/estimates/customer/${estimate.id}/edit`)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                                    title="Edit Estimate"
+                                  >
+                                    <Wrench className="h-3 w-3" />
+                                    Edit
+                                  </button>
+                                  <button
                                     onClick={() => handleSendEstimate(estimate.id, 'email')}
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
                                     disabled={sendingStatus[`${estimate.id}-email`]}
@@ -963,12 +971,38 @@ const JobDetail: React.FC = () => {
                                 ))}
                               </tbody>
                               <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                                {estimate.include_tax && (
+                                  <>
+                                    <tr>
+                                      <td colSpan={3} className="py-1 px-3 text-right text-xs font-medium text-gray-600">
+                                        Subtotal:
+                                      </td>
+                                      {showPrices && (
+                                        <td className="py-1 px-3 text-right text-xs font-medium text-gray-600">
+                                          Rs. {(estimate.subtotal || 0).toFixed(2)}
+                                        </td>
+                                      )}
+                                      <td />
+                                    </tr>
+                                    <tr>
+                                      <td colSpan={3} className="py-1 px-3 text-right text-xs font-medium text-blue-700">
+                                        VAT (18%):
+                                      </td>
+                                      {showPrices && (
+                                        <td className="py-1 px-3 text-right text-xs font-medium text-blue-700">
+                                          +Rs. {(estimate.tax_amount || 0).toFixed(2)}
+                                        </td>
+                                      )}
+                                      <td />
+                                    </tr>
+                                  </>
+                                )}
                                 <tr>
-                                  <td colSpan={3} className="py-2 px-3 text-right text-xs font-bold text-gray-700">
-                                    Total:
+                                  <td colSpan={3} className={`py-2 px-3 text-right text-xs font-bold ${estimate.include_tax ? 'text-gray-900' : 'text-gray-700'}`}>
+                                    Total{estimate.include_tax ? '' : ' (Tax Included)'}:
                                   </td>
                                   {showPrices && (
-                                    <td className="py-2 px-3 text-right text-xs font-bold text-gray-900">
+                                    <td className={`py-2 px-3 text-right text-xs font-bold ${estimate.include_tax ? 'text-blue-700 text-sm' : 'text-gray-900'}`}>
                                       Rs. {estimate.total_amount.toFixed(2)}
                                     </td>
                                   )}
@@ -993,11 +1027,26 @@ const JobDetail: React.FC = () => {
                                   const appSubtotal = estimate.items
                                     .filter((i) => i.approval_status === 'approved')
                                     .reduce((s, i) => s + i.total_price, 0);
-                                  const appTotal = estimate.include_tax ? appSubtotal * 1.18 : appSubtotal;
+                                  const appTax = estimate.include_tax ? appSubtotal * 0.18 : 0;
+                                  const appTotal = appSubtotal + appTax;
                                   return (
-                                    <div className="mt-1 pt-1 border-t border-green-200 flex justify-between text-xs font-semibold text-green-900">
-                                      <span>Approved Total:</span>
-                                      <span>Rs. {appTotal.toFixed(2)}</span>
+                                    <div className="mt-2 pt-2 border-t border-green-200">
+                                      {estimate.include_tax && (
+                                        <>
+                                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                            <span>Approved Subtotal:</span>
+                                            <span>Rs. {appSubtotal.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between text-xs text-blue-700 mb-1">
+                                            <span>Approved VAT (18%):</span>
+                                            <span>+Rs. {appTax.toFixed(2)}</span>
+                                          </div>
+                                        </>
+                                      )}
+                                      <div className="flex justify-between text-xs font-bold text-green-900 pt-1 border-t border-green-100">
+                                        <span>Approved Total{estimate.include_tax ? '' : ' (Tax Included)'}:</span>
+                                        <span>Rs. {appTotal.toFixed(2)}</span>
+                                      </div>
                                     </div>
                                   );
                                 })()}
@@ -1346,6 +1395,33 @@ const JobDetail: React.FC = () => {
                         </div>
                       ))}
                     </>
+                  )}
+
+                  {/* Installed Parts Details */}
+                  {job.used_parts && job.used_parts.length > 0 && (
+                    <div className="card p-4 mt-6 border-blue-100 bg-blue-50/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Package className="h-5 w-5 text-blue-600" />
+                        <h3 className="font-semibold text-gray-900">Installed Parts & Warranty Details</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {job.used_parts.map((upd, idx) => (
+                          <div key={upd.id || idx} className="bg-white p-3 rounded-lg border shadow-sm">
+                            <p className="font-medium text-gray-900 mb-2">{upd.part_name || `Part #${upd.part_id}`}</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <p className="text-gray-500 text-xs">Serial Number</p>
+                                <p className="font-medium font-mono text-gray-800">{upd.serial_number}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500 text-xs">Warranty</p>
+                                <p className="font-medium text-gray-800">{upd.warranty_period}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </>
               )}

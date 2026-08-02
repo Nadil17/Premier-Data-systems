@@ -98,11 +98,36 @@ class Job(Base):
     brand_ref = relationship("Brand", foreign_keys=[brand_id])
     model_ref = relationship("ProductModel", foreign_keys=[model_id])
     machine_category_ref = relationship("Category", foreign_keys=[machine_category_id])
-    parts_requests = relationship("PartsRequest", back_populates="job", cascade="all, delete-orphan")
-    engineer_estimate = relationship("EngineerEstimate", back_populates="job", uselist=False, cascade="all, delete-orphan")
+    
+    # Parts Request and Estimation
     customer_estimate = relationship("CustomerEstimate", back_populates="job", uselist=False, cascade="all, delete-orphan")
+    engineer_estimate = relationship("EngineerEstimate", back_populates="job", uselist=False, cascade="all, delete-orphan")
     job_items = relationship("JobItem", back_populates="job", cascade="all, delete-orphan")
+    parts_requests = relationship("PartsRequest", back_populates="job", cascade="all, delete-orphan")
+    used_part_details = relationship("JobUsedPartDetail", back_populates="job", cascade="all, delete-orphan")
     handovers = relationship("PartsHandover", back_populates="job", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Job {self.job_number}: {self.machine_model}>"
+        return f"<Job {self.job_number} - {self.status}>"
+
+
+class JobUsedPartDetail(Base):
+    """Detailed serial numbers and warranty for parts used in a job"""
+    __tablename__ = "job_used_part_details"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    part_id = Column(Integer, ForeignKey("parts.id", ondelete="CASCADE"), nullable=False)
+    
+    serial_number = Column(String(255), nullable=False)
+    warranty_period = Column(String(255), nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    job = relationship("Job", back_populates="used_part_details")
+    part = relationship("Part")
+    
+    def __repr__(self):
+        return f"<JobUsedPartDetail Job#{self.job_id} Part#{self.part_id} SN:{self.serial_number}>"

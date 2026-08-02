@@ -97,6 +97,13 @@ export interface Job {
 
   // Items taken from customer
   items?: JobItem[];
+  used_parts?: Array<{
+    id: number;
+    part_id: number;
+    part_name?: string;
+    serial_number: string;
+    warranty_period: string;
+  }>;
 }
 
 export type JobSummary = Job;

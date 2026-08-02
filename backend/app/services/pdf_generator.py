@@ -213,7 +213,7 @@ def generate_estimate_pdf(estimate, output_path: str):
     tax_amount = getattr(estimate, 'tax_amount', 0.0) or 0.0
     include_tax = getattr(estimate, 'include_tax', False)
 
-    if include_tax and tax_amount > 0:
+    if include_tax:
         table_data.append([
             Paragraph("<b>Subtotal:</b>", bold_style),
             "", "", "",
@@ -240,7 +240,7 @@ def generate_estimate_pdf(estimate, output_path: str):
         ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]
 
-    summary_rows_count = 3 if (include_tax and tax_amount > 0) else 1
+    summary_rows_count = 3 if include_tax else 1
     total_rows = len(table_data)
     for r_idx in range(total_rows - summary_rows_count, total_rows):
         table_styles.append(('SPAN', (0, r_idx), (3, r_idx)))

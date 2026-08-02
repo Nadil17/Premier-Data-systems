@@ -24,6 +24,7 @@ import ProductsList from './pages/products/ProductsList';
 // Estimates pages
 import EstimatesList from './pages/estimates/EstimatesList';
 import CustomerEstimateForm from './pages/estimates/CustomerEstimateForm';
+import EditCustomerEstimateForm from './pages/estimates/EditCustomerEstimateForm';
 import CustomerEstimateVerify from './pages/estimates/CustomerEstimateVerify';
 
 // Notifications
@@ -221,6 +222,16 @@ function App() {
             <ProtectedRoute allowedRoles={['admin', 'accountant']}>
               <MainLayout>
                 <CustomerEstimateForm />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/estimates/customer/:estimateId/edit"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'accountant']}>
+              <MainLayout>
+                <EditCustomerEstimateForm />
               </MainLayout>
             </ProtectedRoute>
           }

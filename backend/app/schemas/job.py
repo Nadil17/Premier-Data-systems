@@ -72,12 +72,27 @@ class JobStartRepair(BaseModel):
     engineer_id: Optional[int] = None
 
 
+class UsedPartDetailCreate(BaseModel):
+    part_id: int
+    serial_number: str = Field(..., min_length=1)
+    warranty_period: str = Field(..., min_length=1)
+
+class UsedPartDetailResponse(BaseModel):
+    id: int
+    part_id: int
+    part_name: Optional[str] = None
+    serial_number: str
+    warranty_period: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
 # Job Completion Schema
 class JobCompletion(BaseModel):
     work_done: str = Field(..., min_length=1)
     tests_performed: str = Field(..., min_length=1)
     repair_notes: Optional[str] = None
     warranty_details: Optional[str] = None
+    used_parts: Optional[List[UsedPartDetailCreate]] = None
 
 
 # Job Delivery Schema
@@ -97,6 +112,7 @@ class JobResponse(BaseModel):
     customer_id: int
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
+    customer: Optional[dict] = None
     reported_by: str
     additional_phone: Optional[str] = None
     brand_id: Optional[int] = None
@@ -128,6 +144,7 @@ class JobResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     items: List[JobItemResponse] = Field(default_factory=list)
+    used_parts: List[UsedPartDetailResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

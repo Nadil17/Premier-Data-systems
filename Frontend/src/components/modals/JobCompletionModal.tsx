@@ -32,6 +32,18 @@ interface CompletionCheck {
     total_returned: number;
     pending_return: number;
   };
+  used_parts_list?: Array<{
+    part_id: number;
+    part_name: string;
+    quantity_used: number;
+  }>;
+}
+
+interface UsedPartDetail {
+  part_id: number;
+  part_name: string;
+  serial_number: string;
+  warranty_period: string;
 }
 
 export default function JobCompletionModal({
@@ -51,6 +63,7 @@ export default function JobCompletionModal({
   const [testsPerformed, setTestsPerformed] = useState('');
   const [repairNotes, setRepairNotes] = useState('');
   const [warrantyDetails, setWarrantyDetails] = useState('');
+  const [usedPartsDetails, setUsedPartsDetails] = useState<UsedPartDetail[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -60,6 +73,7 @@ export default function JobCompletionModal({
       setTestsPerformed('');
       setRepairNotes('');
       setWarrantyDetails('');
+      setUsedPartsDetails([]);
       setStep('check');
     }
   }, [isOpen, jobId]);
@@ -71,6 +85,21 @@ export default function JobCompletionModal({
       setCompletionCheck(data);
       
       if (data.can_complete) {
+        // Initialize used parts details array
+        const initialDetails: UsedPartDetail[] = [];
+        if (data.used_parts_list) {
+          data.used_parts_list.forEach(part => {
+            for (let i = 0; i < part.quantity_used; i++) {
+              initialDetails.push({
+                part_id: part.part_id,
+                part_name: part.part_name,
+                serial_number: '',
+                warranty_period: ''
+              });
+            }
+          });
+        }
+        setUsedPartsDetails(initialDetails);
         setStep('form');
       }
     } catch (error) {
@@ -89,6 +118,14 @@ export default function JobCompletionModal({
       return;
     }
     
+    // Validate used parts details
+    for (let i = 0; i < usedPartsDetails.length; i++) {
+      if (!usedPartsDetails[i].serial_number.trim() || !usedPartsDetails[i].warranty_period.trim()) {
+        toast.error('Please fill in Serial Number and Warranty Period for all used parts');
+        return;
+      }
+    }
+    
     setSubmitting(true);
     
     try {
@@ -96,7 +133,12 @@ export default function JobCompletionModal({
         work_done: workDone,
         tests_performed: testsPerformed,
         repair_notes: repairNotes,
-        warranty_details: warrantyDetails || undefined
+        warranty_details: warrantyDetails || undefined,
+        used_parts: usedPartsDetails.map(pd => ({
+          part_id: pd.part_id,
+          serial_number: pd.serial_number.trim(),
+          warranty_period: pd.warranty_period.trim()
+        }))
       });
       
       toast.success('Job marked as completed!');
@@ -322,18 +364,60 @@ export default function JobCompletionModal({
                   />
                 </div>
 
-                {/* Parts Summary if available */}
+                {/* Parts Summary and Serial Numbers */}
                 {completionCheck && completionCheck.parts_summary.total_used > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Parts Used Confirmation</h4>
-                    <p className="text-sm text-gray-600">
-                      Total parts used: <span className="font-semibold">{completionCheck.parts_summary.total_used}</span>
-                    </p>
-                    {completionCheck.parts_summary.total_returned > 0 && (
-                      <p className="text-sm text-gray-600">
-                        Parts returned: <span className="font-semibold">{completionCheck.parts_summary.total_returned}</span>
+                  <div className="bg-gray-50 border rounded-lg p-4 space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1 flex items-center">
+                        <Package className="h-4 w-4 mr-2" />
+                        Parts Installed
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Total parts used: <span className="font-semibold">{completionCheck.parts_summary.total_used}</span>
                       </p>
-                    )}
+                    </div>
+
+                    {usedPartsDetails.map((part, index) => (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-white rounded border shadow-sm">
+                        <div className="md:col-span-2">
+                          <p className="text-sm font-medium text-gray-800">{part.part_name} (Item #{index + 1})</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Part / Serial Number <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={part.serial_number}
+                            onChange={(e) => {
+                              const newDetails = [...usedPartsDetails];
+                              newDetails[index].serial_number = e.target.value;
+                              setUsedPartsDetails(newDetails);
+                            }}
+                            className="input w-full text-sm py-1.5"
+                            placeholder="Unique S/N"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Warranty Period <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={part.warranty_period}
+                            onChange={(e) => {
+                              const newDetails = [...usedPartsDetails];
+                              newDetails[index].warranty_period = e.target.value;
+                              setUsedPartsDetails(newDetails);
+                            }}
+                            className="input w-full text-sm py-1.5"
+                            placeholder="e.g., 6 Months"
+                            required
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
 

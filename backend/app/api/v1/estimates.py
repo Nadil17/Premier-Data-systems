@@ -22,7 +22,7 @@ from app.models.estimate import (
 )
 from app.schemas.estimate import (
     EngineerEstimateCreate, EngineerEstimateResponse,
-    CustomerEstimateCreate, CustomerEstimateResponse,
+    CustomerEstimateCreate, CustomerEstimateResponse, CustomerEstimateUpdate,
     ManualApprovalRequest, SendEmailRequest, SendEmailResponse,
     OTPVerification, OTPVerificationResponse, CustomerEstimateApproval
 )
@@ -264,6 +264,70 @@ def create_customer_estimate(
     # Update job status to WAITING_FOR_ESTIMATE_APPROVAL
     job.status = JobStatus.WAITING_FOR_ESTIMATE_APPROVAL
     db.add(job)
+
+    db.commit()
+    
+    # Reload with all relationships
+    db_estimate = (
+        db.query(CustomerEstimate)
+        .options(
+            joinedload(CustomerEstimate.items),
+            joinedload(CustomerEstimate.accountant),
+            joinedload(CustomerEstimate.job).joinedload(Job.customer)
+        )
+        .filter(CustomerEstimate.id == db_estimate.id)
+        .first()
+    )
+    return populate_cust_est(db_estimate)
+
+
+@router.put("/customer/{estimate_id}", response_model=CustomerEstimateResponse)
+def update_customer_estimate(
+    estimate_id: int,
+    estimate_in: CustomerEstimateUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    db_estimate = db.query(CustomerEstimate).filter(CustomerEstimate.id == estimate_id).first()
+    if not db_estimate:
+        raise HTTPException(status_code=404, detail="Customer estimate not found")
+
+    if db_estimate.approval_status != EstimateApprovalStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Only pending estimates can be edited")
+
+    # Update basic fields
+    if estimate_in.special_notes is not None:
+        db_estimate.special_notes = estimate_in.special_notes
+    if estimate_in.include_tax is not None:
+        db_estimate.include_tax = estimate_in.include_tax
+
+    # Update items if provided
+    if estimate_in.items is not None:
+        # Delete existing items
+        db.query(CustomerEstimateItem).filter(CustomerEstimateItem.estimate_id == estimate_id).delete()
+        
+        subtotal = 0.0
+        for item in estimate_in.items:
+            item_unit_price = round(item.unit_price, 2)
+            item_total = round(item.quantity * item_unit_price, 2)
+            subtotal += item_total
+
+            db_item = CustomerEstimateItem(
+                estimate_id=db_estimate.id,
+                item_type=item.item_type,
+                part_id=item.part_id,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price=item_unit_price,
+                total_price=item_total,
+                item_comments=item.item_comments,
+                approval_status=CustomerEstimateItemApprovalStatus.PENDING
+            )
+            db.add(db_item)
+            
+        db_estimate.subtotal = round(subtotal, 2)
+        db_estimate.tax_amount = round(subtotal * 0.18, 2) if db_estimate.include_tax else 0.0
+        db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
 
     db.commit()
     

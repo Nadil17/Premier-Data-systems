@@ -1,37 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Trash2, Package, Wrench, Save, ArrowLeft, CheckCircle, Mail, MessageSquare } from 'lucide-react';
+import { Trash2, Package, Wrench, Save, ArrowLeft, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { engineerEstimatesAPI, customerEstimatesAPI, jobsAPI, partsAPI } from '../../api/endpoints';
-import type { CustomerEstimateItemForm, Job, EngineerEstimate, EstimateItemType, Part } from '../../types';
+import { customerEstimatesAPI, jobsAPI, partsAPI } from '../../api/endpoints';
+import type { CustomerEstimateItemForm, Job, EstimateItemType, Part } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import { getErrorMessage } from '../../utils/apiErrors';
 
-const CustomerEstimateForm: React.FC = () => {
+const EditCustomerEstimateForm: React.FC = () => {
   const navigate = useNavigate();
-  const { jobId } = useParams<{ jobId: string }>();
+  const { estimateId } = useParams<{ estimateId: string }>();
+  const [estimate, setEstimate] = useState<any>(null);
 
   const [job, setJob] = useState<Job | null>(null);
-  const [engineerEstimate, setEngineerEstimate] = useState<EngineerEstimate | null>(null);
   const [items, setItems] = useState<CustomerEstimateItemForm[]>([]);
   const [specialNotes, setSpecialNotes] = useState('');
   const [includeTax, setIncludeTax] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [sentTypes, setSentTypes] = useState<{ email: boolean; whatsapp: boolean }>({ email: false, whatsapp: false });
-  const [activeSendType, setActiveSendType] = useState<'email' | 'whatsapp' | null>(null);
-  const [createdEstimateId, setCreatedEstimateId] = useState<number | null>(null);
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [isLoadingParts, setIsLoadingParts] = useState(false);
 
   useEffect(() => {
-    if (jobId) {
+    if (estimateId) {
       loadJobAndEstimate();
       loadAllParts();
     }
-  }, [jobId]);
+  }, [estimateId]);
 
   const loadAllParts = async () => {
     setIsLoadingParts(true);
@@ -48,41 +44,28 @@ const CustomerEstimateForm: React.FC = () => {
   const loadJobAndEstimate = async () => {
     setIsLoading(true);
     try {
+      // Load customer estimate
+      const estData = await customerEstimatesAPI.getById(parseInt(estimateId!));
+      setEstimate(estData);
+
       // Load job details
-      const jobData = await jobsAPI.getById(parseInt(jobId!));
+      const jobData = await jobsAPI.getById(estData.job_id);
       setJob(jobData);
 
-      // Auto-detect if customer has a Tax Number
-      const customerTaxNum = jobData.customer?.tax_number?.trim() || jobData.customer?.vat_number?.trim();
-      const hasTaxNum = !!customerTaxNum;
-      setIncludeTax(hasTaxNum);
+      setIncludeTax(estData.include_tax);
+      setSpecialNotes(estData.special_notes || '');
 
-      // Load engineer estimate
-      const estimates = await engineerEstimatesAPI.getByJob(parseInt(jobId!));
-      if (estimates && estimates.length > 0) {
-        const engEstimate = estimates[0];
-        setEngineerEstimate(engEstimate);
-
-        // Pre-populate items from engineer estimate
-        const estimateItems: CustomerEstimateItemForm[] = engEstimate.items.map((item: any) => ({
-          item_type: item.item_type,
-          part_id: item.part_id,
-          part_name: item.part_id ? `Part ${item.part_id}` : undefined,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: 0, // Accountant needs to add price
-          item_comments: item.notes || '',
-          fromEngineerEstimate: true,
-        }));
-        setItems(estimateItems);
-
-        // Set technical notes as special notes
-        if (engEstimate.technical_notes) {
-          setSpecialNotes(engEstimate.technical_notes);
-        }
-      } else {
-        toast.error('No engineer estimate found for this job');
-      }
+      // Pre-populate items from existing estimate
+      const estimateItems: CustomerEstimateItemForm[] = estData.items.map((item: any) => ({
+        item_type: item.item_type,
+        part_id: item.part_id,
+        part_name: item.part_id ? `Part ${item.part_id}` : undefined,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: estData.include_tax ? item.unit_price : parseFloat((item.unit_price / 1.18).toFixed(2)),
+        item_comments: item.item_comments || '',
+      }));
+      setItems(estimateItems);
     } catch (error) {
       console.error('Failed to load job and estimate:', error);
       toast.error('Failed to load estimate details');
@@ -155,7 +138,6 @@ const CustomerEstimateForm: React.FC = () => {
     setIsSubmitting(true);
     try {
       const estimateData = {
-        job_id: parseInt(jobId!),
         special_notes: specialNotes.trim() || undefined,
         include_tax: includeTax,
         items: items.map(item => ({
@@ -168,34 +150,18 @@ const CustomerEstimateForm: React.FC = () => {
         })),
       };
 
-      const response = await customerEstimatesAPI.create(estimateData);
-      setCreatedEstimateId(response.id);
-      toast.success(`Customer estimate ${response.estimate_number} created successfully!`);
+      const response = await customerEstimatesAPI.update(parseInt(estimateId!), estimateData);
+      toast.success(`Customer estimate ${response.estimate_number} updated successfully!`);
+      // Navigate back to job detail page
+      navigate(`/jobs/${job?.id}`);
     } catch (error) {
-      console.error('Failed to create estimate:', error);
-      toast.error(getErrorMessage(error, 'Failed to create customer estimate'));
+      console.error('Failed to update estimate:', error);
+      toast.error(getErrorMessage(error, 'Failed to update customer estimate'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSendToCustomer = async (type: 'email' | 'whatsapp') => {
-    if (!createdEstimateId) return;
-
-    setIsSending(true);
-    setActiveSendType(type);
-    try {
-      const response = await customerEstimatesAPI.sendToCustomer(createdEstimateId, { send_via: type });
-      toast.success(response.message);
-      setSentTypes(prev => ({ ...prev, [type]: true }));
-    } catch (error) {
-      console.error(`Failed to send estimate via ${type}:`, error);
-      toast.error(getErrorMessage(error, `Failed to send estimate via ${type}`));
-    } finally {
-      setIsSending(false);
-      setActiveSendType(null);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -205,12 +171,12 @@ const CustomerEstimateForm: React.FC = () => {
     );
   }
 
-  if (!job || !engineerEstimate) {
+  if (!job || !estimate) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Job or engineer estimate not found</p>
-        <button onClick={() => navigate('/estimates')} className="btn-secondary mt-4">
-          Back to Estimates
+        <p className="text-gray-500">Job or customer estimate not found</p>
+        <button onClick={() => navigate(-1)} className="btn-secondary mt-4">
+          Back
         </button>
       </div>
     );
@@ -222,40 +188,29 @@ const CustomerEstimateForm: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/estimates')}
+            onClick={() => navigate(`/jobs/${job.id}`)}
             className="btn-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Create Customer Estimate</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Customer Estimate</h1>
             <p className="text-gray-600">Job: {job.job_number} - {job.customer_name}</p>
           </div>
         </div>
       </div>
 
-      {/* Job and Engineer Estimate Info */}
+      {/* Job Info */}
       <div className="card p-6 bg-blue-50 border-l-4 border-l-blue-600">
-        <h3 className="font-semibold text-blue-900 mb-3">Engineer Estimate Summary</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-blue-700">Estimate Number:</span>
-            <span className="ml-2 font-medium">{engineerEstimate.estimate_number}</span>
+            <span className="ml-2 font-medium">{estimate.estimate_number}</span>
           </div>
           <div>
-            <span className="text-blue-700">Engineer:</span>
-            <span className="ml-2 font-medium">{engineerEstimate.engineer_name}</span>
-          </div>
-          <div className="col-span-2">
             <span className="text-blue-700">Machine:</span>
             <span className="ml-2 font-medium">{(job?.machine_model || "")}</span>
           </div>
-          {engineerEstimate.technical_notes && (
-            <div className="col-span-2">
-              <span className="text-blue-700">Technical Notes:</span>
-              <p className="mt-1 text-gray-700">{engineerEstimate.technical_notes}</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -492,80 +447,27 @@ const CustomerEstimateForm: React.FC = () => {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        {!createdEstimateId ? (
-          <>
-            <button
-              onClick={() => navigate('/estimates')}
-              className="btn-secondary"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="btn-primary flex items-center gap-2"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <LoadingSpinner size="sm" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Save className="h-5 w-5" />
-                  Create Estimate
-                </>
-              )}
-            </button>
-          </>
-        ) : (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleSendToCustomer('email')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                sentTypes.email
-                  ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-              }`}
-              disabled={isSending || sentTypes.email}
-            >
-              {isSending && activeSendType === 'email' ? (
-                <><LoadingSpinner size="sm" /> Sending...</>
-              ) : sentTypes.email ? (
-                <><CheckCircle className="h-5 w-5" /> Email Sent</>
-              ) : (
-                <><Mail className="h-5 w-5" /> Send via Email</>
-              )}
-            </button>
-            <button
-              onClick={() => handleSendToCustomer('whatsapp')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                sentTypes.whatsapp
-                  ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                  : 'bg-green-600 hover:bg-green-700 text-white shadow-sm'
-              }`}
-              disabled={isSending || sentTypes.whatsapp}
-            >
-              {isSending && activeSendType === 'whatsapp' ? (
-                <><LoadingSpinner size="sm" /> Sending...</>
-              ) : sentTypes.whatsapp ? (
-                <><CheckCircle className="h-5 w-5" /> WhatsApp Sent</>
-              ) : (
-                <><MessageSquare className="h-5 w-5" /> Send via WhatsApp</>
-              )}
-            </button>
-            <button
-              onClick={() => navigate('/estimates')}
-              className="btn-secondary"
-            >
-              Done
-            </button>
-          </div>
-        )}
+        <button
+          onClick={() => navigate(`/jobs/${job.id}`)}
+          className="btn-secondary"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSubmit}
+          className="btn-primary flex items-center gap-2"
+          disabled={isSubmitting || items.length === 0}
+        >
+          {isSubmitting ? (
+            <><LoadingSpinner size="sm" /> Updating...</>
+          ) : (
+            <><Save className="h-5 w-5" /> Update Estimate</>
+          )}
+        </button>
       </div>
     </div>
   );
 };
 
-export default CustomerEstimateForm;
+export default EditCustomerEstimateForm;

@@ -10,13 +10,14 @@ from app.core.security import get_current_user, require_role
 from app.core.time import utc_now
 from app.models.user import User, UserRole
 from app.models.customer import Customer
-from app.models.job import Job, JobStatus
+from app.models.job import Job, JobStatus, JobUsedPartDetail
 from app.models.job_item import JobItem
 from app.models.parts import (
     PartsRequest,
     PartsRequestItem,
     PartsRequestItemStatus,
     PartsRequestStatus,
+    Part,
 )
 from app.models.handover import PartsHandover, HandoverStatus
 from app.models.product import Brand, Category, ProductModel
@@ -98,6 +99,16 @@ def build_job_response(job, customer=None, assigned_engineer=None):
                 "notes": item.notes
             }
             for item in job.job_items
+        ],
+        "used_parts": [
+            {
+                "id": part_detail.id,
+                "part_id": part_detail.part_id,
+                "part_name": part_detail.part.name if part_detail.part else None,
+                "serial_number": part_detail.serial_number,
+                "warranty_period": part_detail.warranty_period
+            }
+            for part_detail in getattr(job, "used_part_details", [])
         ]
     }
 
@@ -629,7 +640,8 @@ async def check_job_completion_status(
             "total_used": 0,
             "total_returned": 0,
             "pending_return": 0
-        }
+        },
+        "used_parts_list": []
     }
     
     if not parts_requests:
@@ -649,6 +661,18 @@ async def check_job_completion_status(
             validation_results["parts_summary"]["total_issued"] += issued
             validation_results["parts_summary"]["total_used"] += used
             validation_results["parts_summary"]["total_returned"] += returned
+            
+            if used > 0:
+                # Add to used_parts_list for frontend to prompt for serial numbers
+                existing_part = next((p for p in validation_results["used_parts_list"] if p["part_id"] == item.part_id), None)
+                if existing_part:
+                    existing_part["quantity_used"] += used
+                else:
+                    validation_results["used_parts_list"].append({
+                        "part_id": item.part_id,
+                        "part_name": item.part.name,
+                        "quantity_used": used
+                    })
             
             unused = issued - used
             
@@ -768,6 +792,40 @@ async def complete_job(
                         detail=f"Cannot complete job: Part '{item.part.name}' return not yet approved by storekeeper"
                     )
     
+    # Validate and store Used Part Details (Serial Number and Warranty)
+    used_part_counts = {}
+    if parts_requests:
+        for request in parts_requests:
+            for item in request.items:
+                if item.quantity_used and item.quantity_used > 0:
+                    used_part_counts[item.part_id] = used_part_counts.get(item.part_id, 0) + item.quantity_used
+
+    provided_used_parts = completion_data.used_parts or []
+    
+    # Count provided details per part_id
+    provided_counts = {}
+    for pd in provided_used_parts:
+        provided_counts[pd.part_id] = provided_counts.get(pd.part_id, 0) + 1
+
+    # Check if all used parts have details
+    for part_id, expected_count in used_part_counts.items():
+        actual_count = provided_counts.get(part_id, 0)
+        if actual_count != expected_count:
+            part = db.query(Part).get(part_id)
+            part_name = part.name if part else f"Part #{part_id}"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Please provide exactly {expected_count} serial number(s) and warranty period(s) for {part_name}"
+            )
+            
+    # Check if they provided details for parts they didn't use
+    for part_id in provided_counts:
+        if part_id not in used_part_counts:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Provided serial number for Part #{part_id} which was not used in this job"
+            )
+
     job.work_done = completion_data.work_done
     job.tests_performed = completion_data.tests_performed
     job.repair_notes = completion_data.repair_notes
@@ -775,6 +833,15 @@ async def complete_job(
     job.completed_at = utc_now()
     job.status = JobStatus.WAITING_FOR_ACCOUNTANT_REVIEW
     
+    # Insert the used parts details
+    for pd in provided_used_parts:
+        db.add(JobUsedPartDetail(
+            job_id=job_id,
+            part_id=pd.part_id,
+            serial_number=pd.serial_number,
+            warranty_period=pd.warranty_period
+        ))
+        
     db.commit()
     
     job = load_job_with_refs(db, job_id)
