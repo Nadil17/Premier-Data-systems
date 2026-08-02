@@ -30,6 +30,9 @@ import CustomerEstimateVerify from './pages/estimates/CustomerEstimateVerify';
 // Notifications
 import NotificationsPage from './pages/notifications/NotificationsPage';
 
+// Admin
+import UsersList from './pages/admin/UsersList';
+
 // Settings
 import Settings from './pages/settings/Settings';
 
@@ -84,6 +87,18 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <Dashboard />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <MainLayout>
+                <UsersList />
               </MainLayout>
             </ProtectedRoute>
           }

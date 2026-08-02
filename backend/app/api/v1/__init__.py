@@ -5,7 +5,7 @@ Combines all API endpoints
 
 from fastapi import APIRouter
 
-from app.api.v1 import auth, customers, jobs, parts, products, estimates, dashboards, notifications, whatsapp, handovers
+from app.api.v1 import auth, customers, jobs, parts, products, estimates, dashboards, notifications, whatsapp, handovers, users
 
 api_router = APIRouter()
 
@@ -20,3 +20,4 @@ api_router.include_router(dashboards.router, prefix="/dashboards", tags=["Dashbo
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
 api_router.include_router(handovers.router, tags=["Parts Handovers"])
+api_router.include_router(users.router, tags=["Users"])
