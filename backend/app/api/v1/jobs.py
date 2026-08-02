@@ -106,7 +106,9 @@ def build_job_response(job, customer=None, assigned_engineer=None):
                 "part_id": part_detail.part_id,
                 "part_name": part_detail.part.name if part_detail.part else None,
                 "serial_number": part_detail.serial_number,
-                "warranty_period": part_detail.warranty_period
+                "warranty_period": part_detail.warranty_period,
+                "warranty_start_date": part_detail.warranty_start_date,
+                "warranty_end_date": part_detail.warranty_end_date
             }
             for part_detail in getattr(job, "used_part_details", [])
         ]
