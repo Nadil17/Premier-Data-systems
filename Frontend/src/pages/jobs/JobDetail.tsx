@@ -767,6 +767,45 @@ const JobDetail: React.FC = () => {
                       <p className="text-xs text-gray-400 text-center py-3">No items recorded</p>
                     )}
                   </div>
+                  
+                  {/* Installed Parts Details */}
+                  {job.used_parts && job.used_parts.length > 0 && (
+                    <div className="card p-4 border-blue-100 bg-blue-50/30">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Package className="h-5 w-5 text-blue-600" />
+                        <h3 className="font-semibold text-gray-900">Installed Parts & Warranty Details</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {job.used_parts.map((upd, idx) => (
+                          <div key={upd.id || idx} className="bg-white p-3 rounded-lg border shadow-sm">
+                            <p className="font-medium text-gray-900 mb-2">{upd.part_name || `Part #${upd.part_id}`}</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <p className="text-gray-500 text-xs">Serial Number</p>
+                                <p className="font-medium font-mono text-gray-800">{upd.serial_number}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500 text-xs">Warranty</p>
+                                <p className="font-medium text-gray-800">{upd.warranty_period}</p>
+                              </div>
+                              {upd.warranty_start_date && (
+                                <div>
+                                  <p className="text-gray-500 text-xs">Start Date</p>
+                                  <p className="font-medium text-gray-800">{new Date(upd.warranty_start_date).toLocaleDateString()}</p>
+                                </div>
+                              )}
+                              {upd.warranty_end_date && (
+                                <div>
+                                  <p className="text-gray-500 text-xs">End Date</p>
+                                  <p className="font-medium text-gray-800">{new Date(upd.warranty_end_date).toLocaleDateString()}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
