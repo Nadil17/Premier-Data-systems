@@ -141,7 +141,9 @@ export default function JobCompletionModal({
         used_parts: usedPartsDetails.map(pd => ({
           part_id: pd.part_id,
           serial_number: pd.serial_number.trim(),
-          warranty_period: pd.warranty_period.trim()
+          warranty_period: pd.warranty_period.trim(),
+          warranty_start_date: pd.warranty_start_date || undefined,
+          warranty_end_date: pd.warranty_end_date || undefined
         }))
       });
       
