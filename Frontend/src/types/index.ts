@@ -103,6 +103,8 @@ export interface Job {
     part_name?: string;
     serial_number: string;
     warranty_period: string;
+    warranty_start_date?: string | null;
+    warranty_end_date?: string | null;
   }>;
 }
 

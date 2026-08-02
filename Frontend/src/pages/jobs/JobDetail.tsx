@@ -1417,6 +1417,18 @@ const JobDetail: React.FC = () => {
                                 <p className="text-gray-500 text-xs">Warranty</p>
                                 <p className="font-medium text-gray-800">{upd.warranty_period}</p>
                               </div>
+                              {upd.warranty_start_date && (
+                                <div>
+                                  <p className="text-gray-500 text-xs">Start Date</p>
+                                  <p className="font-medium text-gray-800">{new Date(upd.warranty_start_date).toLocaleDateString()}</p>
+                                </div>
+                              )}
+                              {upd.warranty_end_date && (
+                                <div>
+                                  <p className="text-gray-500 text-xs">End Date</p>
+                                  <p className="font-medium text-gray-800">{new Date(upd.warranty_end_date).toLocaleDateString()}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}

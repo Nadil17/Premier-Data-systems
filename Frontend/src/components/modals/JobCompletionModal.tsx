@@ -44,6 +44,8 @@ interface UsedPartDetail {
   part_name: string;
   serial_number: string;
   warranty_period: string;
+  warranty_start_date: string;
+  warranty_end_date: string;
 }
 
 export default function JobCompletionModal({
@@ -94,7 +96,9 @@ export default function JobCompletionModal({
                 part_id: part.part_id,
                 part_name: part.part_name,
                 serial_number: '',
-                warranty_period: ''
+                warranty_period: '',
+                warranty_start_date: '',
+                warranty_end_date: ''
               });
             }
           });
@@ -414,6 +418,36 @@ export default function JobCompletionModal({
                             className="input w-full text-sm py-1.5"
                             placeholder="e.g., 6 Months"
                             required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            value={part.warranty_start_date}
+                            onChange={(e) => {
+                              const newDetails = [...usedPartsDetails];
+                              newDetails[index].warranty_start_date = e.target.value;
+                              setUsedPartsDetails(newDetails);
+                            }}
+                            className="input w-full text-sm py-1.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            value={part.warranty_end_date}
+                            onChange={(e) => {
+                              const newDetails = [...usedPartsDetails];
+                              newDetails[index].warranty_end_date = e.target.value;
+                              setUsedPartsDetails(newDetails);
+                            }}
+                            className="input w-full text-sm py-1.5"
                           />
                         </div>
                       </div>

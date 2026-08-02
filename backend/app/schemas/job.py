@@ -76,6 +76,8 @@ class UsedPartDetailCreate(BaseModel):
     part_id: int
     serial_number: str = Field(..., min_length=1)
     warranty_period: str = Field(..., min_length=1)
+    warranty_start_date: Optional[date] = None
+    warranty_end_date: Optional[date] = None
 
 class UsedPartDetailResponse(BaseModel):
     id: int
@@ -83,6 +85,8 @@ class UsedPartDetailResponse(BaseModel):
     part_name: Optional[str] = None
     serial_number: str
     warranty_period: str
+    warranty_start_date: Optional[date] = None
+    warranty_end_date: Optional[date] = None
     
     model_config = ConfigDict(from_attributes=True)
 

@@ -839,7 +839,9 @@ async def complete_job(
             job_id=job_id,
             part_id=pd.part_id,
             serial_number=pd.serial_number,
-            warranty_period=pd.warranty_period
+            warranty_period=pd.warranty_period,
+            warranty_start_date=pd.warranty_start_date,
+            warranty_end_date=pd.warranty_end_date
         ))
         
     db.commit()
