@@ -887,7 +887,7 @@ async def accountant_review_job(
     job_id: int,
     review_data: AccountantReview,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.STORE_KEEPER])),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.STOREKEEPER])),
 ):
     """Accountant reviews completed job, assigns invoice number, and marks it as ready for delivery"""
     
