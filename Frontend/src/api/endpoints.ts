@@ -22,6 +22,7 @@ export const jobsAPI = {
   getAll: (skip = 0, limit = 100, params?: any) =>
     api.get('/jobs', { params: { skip, limit, ...params } }),
   getById: (id: number) => api.get(`/jobs/${id}`),
+  getHistoryBySerial: (serial: string) => api.get(`/jobs/history/${serial}`),
   create: (data: any) => api.post('/jobs', data),
   update: (id: number, data: any) => api.put(`/jobs/${id}`, data),
 

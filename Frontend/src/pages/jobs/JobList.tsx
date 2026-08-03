@@ -136,14 +136,21 @@ const JobList: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50">
+                  <tr key={job.id} className={job.has_previous_jobs ? "bg-orange-50 hover:bg-orange-100" : "hover:bg-gray-50"}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                       {job.job_number}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {(job?.machine_model || "")}
                       <br />
-                      <span className="text-xs text-gray-500">S/N: {job.serial_number}</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-500">S/N: {job.serial_number}</span>
+                        {job.has_previous_jobs && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200" title="This serial number has previous repair jobs">
+                            Repeat Repair
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {job.customer_name || 'N/A'}

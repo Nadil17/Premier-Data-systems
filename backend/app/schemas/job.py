@@ -132,6 +132,7 @@ class JobResponse(BaseModel):
     job_category: JobCategory
     status: JobStatus
     has_pending_handover: bool = False
+    has_previous_jobs: bool = False
     assigned_to_id: Optional[int] = None
     assigned_at: Optional[datetime] = None
     work_done: Optional[str] = None
@@ -165,6 +166,7 @@ class JobSummary(BaseModel):
     status: JobStatus
     job_type: JobType
     job_category: JobCategory
+    has_previous_jobs: bool = False
     assigned_to_id: Optional[int]
     assigned_to_name: Optional[str]
     created_at: datetime

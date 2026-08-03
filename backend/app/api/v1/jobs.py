@@ -32,7 +32,7 @@ from app.services.notification import notification_service
 router = APIRouter()
 
 
-def build_job_response(job, customer=None, assigned_engineer=None):
+def build_job_response(job, customer=None, assigned_engineer=None, has_previous_jobs=False):
     """Build a complete job response dict with resolved lookup names."""
     customer = customer or getattr(job, "customer", None)
     assigned_engineer = assigned_engineer or getattr(job, "assigned_to", None)
@@ -73,6 +73,7 @@ def build_job_response(job, customer=None, assigned_engineer=None):
         "job_category": job.job_category,
         "status": job.status,
         "has_pending_handover": getattr(job, "has_pending_handover", False),
+        "has_previous_jobs": has_previous_jobs,
         "assigned_to_id": job.assigned_to_id,
         "assigned_to_name": assigned_engineer.full_name if assigned_engineer else None,
         "assigned_at": job.assigned_at,
@@ -214,7 +215,14 @@ async def get_all_jobs(
     total = query.count()
     jobs = query.order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
     
-    result = [build_job_response(job) for job in jobs]
+    from sqlalchemy import func
+    serials = [job.serial_number for job in jobs if job.serial_number]
+    serial_has_prev = {}
+    if serials:
+        counts = db.query(Job.serial_number, func.count(Job.id)).filter(Job.serial_number.in_(serials)).group_by(Job.serial_number).all()
+        serial_has_prev = {sn: (count > 1) for sn, count in counts}
+    
+    result = [build_job_response(job, has_previous_jobs=serial_has_prev.get(job.serial_number, False)) for job in jobs]
     
     return {
         "items": result,
@@ -448,7 +456,13 @@ async def get_job(
     if job.assigned_to_id:
         assigned_engineer = db.query(User).filter(User.id == job.assigned_to_id).first()
     
-    return build_job_response(job, customer, assigned_engineer)
+    from sqlalchemy import func
+    has_prev = False
+    if job.serial_number:
+        count = db.query(func.count(Job.id)).filter(Job.serial_number == job.serial_number).scalar()
+        has_prev = (count > 1)
+    
+    return build_job_response(job, customer, assigned_engineer, has_previous_jobs=has_prev)
 
 
 @router.put("/{job_id}", response_model=JobResponse)

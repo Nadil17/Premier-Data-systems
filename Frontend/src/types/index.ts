@@ -76,6 +76,7 @@ export interface Job {
   assigned_to_name?: string;
   assigned_to_id?: number;
   has_pending_handover?: boolean;
+  has_previous_jobs?: boolean;
   assigned_at?: string;
 
   // Timestamps

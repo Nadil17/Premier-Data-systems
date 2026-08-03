@@ -28,12 +28,13 @@ import AccountantReviewModal from '../../components/modals/AccountantReviewModal
 import DeliveryModal from '../../components/modals/DeliveryModal';
 import { StartRepairModal } from '../../components/modals/StartRepairModal';
 import ManualApprovalModal from '../estimates/ManualApprovalModal';
+import JobHistoryView from './JobHistoryView';
 import { getErrorMessage } from '../../utils/apiErrors';
 import { formatDate, formatDateTime } from '../../utils/formatters';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
-type TabId = 'info' | 'estimates' | 'parts' | 'repair';
+type TabId = 'info' | 'estimates' | 'parts' | 'repair' | 'history';
 
 const JobDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -449,6 +450,14 @@ const JobDetail: React.FC = () => {
       icon: <Wrench className="h-3.5 w-3.5" />,
     },
   ];
+
+  if (job?.serial_number) {
+    tabs.push({
+      id: 'history',
+      label: 'History',
+      icon: <Clock className="h-3.5 w-3.5" />,
+    });
+  }
 
   // ── Small reusable UI helpers ──────────────────────────────────────────
   const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -1507,6 +1516,13 @@ const JobDetail: React.FC = () => {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* ── HISTORY TAB ── */}
+              {activeTab === 'history' && job?.serial_number && (
+                <div className="space-y-4">
+                  <JobHistoryView serialNumber={job.serial_number} currentJobId={job.id} />
+                </div>
               )}
             </div>
           </div>
