@@ -553,7 +553,7 @@ const JobDetail: React.FC = () => {
                   )}
               </>
             )}
-            {(user?.role === 'accountant' || user?.role === 'admin') && (
+            {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper') && (
               <>
                 {job.status === 'waiting_for_accountant_review' && (
                   <button
@@ -914,7 +914,7 @@ const JobDetail: React.FC = () => {
                                 )}
                                 Download PDF
                               </button>
-                              {(user?.role === 'accountant' || user?.role === 'admin') && estimate.approval_status === 'pending' && (
+                              {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager') && estimate.approval_status === 'pending' && (
                                 <div className="flex gap-2 mr-2">
                                   <button
                                     onClick={() => navigate(`/estimates/customer/${estimate.id}/edit`)}

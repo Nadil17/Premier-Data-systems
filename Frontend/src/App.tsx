@@ -234,7 +234,7 @@ function App() {
         <Route
           path="/estimates/create/:jobId"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'accountant']}>
+            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager']}>
               <MainLayout>
                 <CustomerEstimateForm />
               </MainLayout>
@@ -244,7 +244,7 @@ function App() {
         <Route
           path="/estimates/customer/:estimateId/edit"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'accountant']}>
+            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager']}>
               <MainLayout>
                 <EditCustomerEstimateForm />
               </MainLayout>

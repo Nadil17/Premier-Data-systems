@@ -57,6 +57,13 @@ const Dashboard: React.FC = () => {
         case 'manager':
           data = await dashboardAPI.getManagerDashboard();
           setStats(data);
+          // Fetch all customer estimates for manager/admin dashboard
+          try {
+            const estimates = await customerEstimatesAPI.getAll(0, 100);
+            setCustomerEstimates(estimates);
+          } catch (err) {
+            console.error("Failed to fetch customer estimates", err);
+          }
           break;
         case 'engineer':
           data = await dashboardAPI.getEngineerDashboard();
@@ -84,6 +91,14 @@ const Dashboard: React.FC = () => {
             total_customers: data.out_of_stock_items,
             jobs_by_status: {},
           });
+          // Fetch completed jobs pending review
+          try {
+            const allJobs = await jobsAPI.getAll(0, 100);
+            const pendingReviewJobs = allJobs.items.filter((j: any) => j.status === 'waiting_for_accountant_review');
+            setJobs(pendingReviewJobs);
+          } catch (err) {
+            console.error("Failed to fetch pending review jobs", err);
+          }
 
           // Fetch pending returns
           try {
@@ -320,7 +335,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Completed Jobs Pending Review - Only for Accountants */}
-      {(user?.role === 'accountant' || user?.role === 'admin') && (
+      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper') && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Completed Jobs Pending Review</h2>
@@ -389,7 +404,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Accountant-Generated Customer Estimates */}
-      {(user?.role === 'accountant' || user?.role === 'admin') && (
+      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager') && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">My Customer Estimates</h2>
