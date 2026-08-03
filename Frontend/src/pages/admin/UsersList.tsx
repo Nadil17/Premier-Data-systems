@@ -15,7 +15,8 @@ export default function UsersList() {
     try {
       setLoading(true);
       const response = await usersAPI.getAll(0, 100);
-      setUsers(response.data);
+      // Depending on the endpoint, it might return an array or { items: [...] }
+      setUsers(Array.isArray(response) ? response : (response.items || []));
     } catch (error) {
       toast.error('Failed to fetch users');
       console.error(error);
