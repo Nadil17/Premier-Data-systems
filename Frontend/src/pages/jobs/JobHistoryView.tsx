@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { jobsAPI } from '../../api/endpoints';
-import { formatDateTime } from '../../utils/dateFormatter';
-import { CheckCircle, Clock, Wrench, AlertCircle, FileText, ChevronRight } from 'lucide-react';
+import { formatDateTime } from '../../utils/formatters';
+import { CheckCircle, Clock } from 'lucide-react';
 
 interface JobHistoryPart {
   part_name: string;
