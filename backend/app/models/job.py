@@ -53,7 +53,6 @@ class Job(Base):
     
     # Machine Information
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=True)
     machine_category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     machine_model = Column(String(255), nullable=False)
     serial_number = Column(String(255), index=True)
@@ -96,7 +95,6 @@ class Job(Base):
     assigned_to = relationship("User", foreign_keys=[assigned_to_id])
     reviewed_by = relationship("User", foreign_keys=[reviewed_by_id])
     brand_ref = relationship("Brand", foreign_keys=[brand_id])
-    model_ref = relationship("ProductModel", foreign_keys=[model_id])
     machine_category_ref = relationship("Category", foreign_keys=[machine_category_id])
     
     # Parts Request and Estimation

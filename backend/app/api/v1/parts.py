@@ -1,6 +1,8 @@
 """Parts and inventory management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import io
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
@@ -10,13 +12,13 @@ from app.core.time import utc_now
 from app.models.user import User, UserRole
 from app.models.job import Job
 from app.models.parts import Part, PartsRequest, PartsRequestItem, PartsRequestStatus, PartsRequestItemStatus
-from app.models.product import Brand, Category, ProductModel
+from app.models.product import Brand, Category
 from app.schemas.parts import (
     PartCreate, PartUpdate, PartResponse,
     PartsRequestCreate, PartsRequestResponse, PartsRequestApproval,
     PartsRequestSummary, PartsInventorySummary,
     PartsRequestItemUsage, PartsRequestItemReturn,
-    LookupCreate, LookupResponse
+    LookupCreate, LookupBulkCreate, LookupResponse
 )
 from app.utils.id_generator import generate_parts_request_number
 from app.services.notification import notification_service
@@ -33,8 +35,6 @@ def build_part_response(part: Part) -> dict:
         "description": part.description,
         "brand_id": part.brand_id,
         "brand_name": part.brand_ref.name if part.brand_ref else None,
-        "model_id": part.model_id,
-        "model_name": part.model_ref.name if part.model_ref else None,
         "category_id": part.category_id,
         "category_name": part.category_ref.name if part.category_ref else None,
         "quantity_in_stock": part.quantity_in_stock,
@@ -48,14 +48,11 @@ def build_part_response(part: Part) -> dict:
 def validate_lookup_ids(
     db: Session,
     brand_id: Optional[int],
-    model_id: Optional[int],
     category_id: Optional[int],
 ) -> None:
     """Validate referenced shared lookup rows before saving parts."""
     if brand_id is not None and not db.query(Brand).filter(Brand.id == brand_id).first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand not found")
-    if model_id is not None and not db.query(ProductModel).filter(ProductModel.id == model_id).first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
     if category_id is not None and not db.query(Category).filter(Category.id == category_id).first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
@@ -85,31 +82,46 @@ async def create_brand(
     db.refresh(brand)
     return brand
 
-
-# ─── Lookup table CRUD: Models ───
-
-@router.get("/models", response_model=List[LookupResponse])
-async def list_models(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return db.query(ProductModel).order_by(ProductModel.name).all()
-
-
-@router.post("/models", response_model=LookupResponse, status_code=status.HTTP_201_CREATED)
-async def create_model(
-    data: LookupCreate,
+@router.post("/brands/bulk", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def bulk_create_brands(
+    data: LookupBulkCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.STOREKEEPER]))
 ):
-    existing = db.query(ProductModel).filter(ProductModel.name == data.name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Model already exists")
-    model = ProductModel(name=data.name)
-    db.add(model)
+    added = 0
+    for name in data.names:
+        clean_name = name.strip()
+        if not clean_name:
+            continue
+        existing = db.query(Brand).filter(Brand.name == clean_name).first()
+        if not existing:
+            brand = Brand(name=clean_name)
+            db.add(brand)
+            added += 1
     db.commit()
-    db.refresh(model)
-    return model
+    return {"message": f"Successfully added {added} brands"}
+
+
+@router.delete("/brands/{brand_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_brand(
+    brand_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN])),
+):
+    existing = db.query(Brand).filter(Brand.id == brand_id).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    
+    if existing.products or existing.parts:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete brand because it is used by existing products or parts."
+        )
+        
+    db.delete(existing)
+    db.commit()
+    return None
+
 
 
 # ─── Lookup table CRUD: Categories ───
@@ -138,6 +150,47 @@ async def create_category(
     return category
 
 
+@router.post("/categories/bulk", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def bulk_create_categories(
+    data: LookupBulkCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.STOREKEEPER]))
+):
+    added = 0
+    for name in data.names:
+        clean_name = name.strip()
+        if not clean_name:
+            continue
+        existing = db.query(Category).filter(Category.name == clean_name).first()
+        if not existing:
+            category = Category(name=clean_name)
+            db.add(category)
+            added += 1
+    db.commit()
+    return {"message": f"Successfully added {added} categories"}
+
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN])),
+):
+    existing = db.query(Category).filter(Category.id == category_id).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    if existing.products or existing.parts:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete category because it is used by existing products or parts."
+        )
+        
+    db.delete(existing)
+    db.commit()
+    return None
+
+
 # Part Management
 @router.post("/inventory", response_model=PartResponse, status_code=status.HTTP_201_CREATED)
 async def create_part(
@@ -155,7 +208,7 @@ async def create_part(
             detail="Part number already exists"
         )
 
-    validate_lookup_ids(db, part_data.brand_id, part_data.model_id, part_data.category_id)
+    validate_lookup_ids(db, part_data.brand_id, part_data.category_id)
     
     new_part = Part(**part_data.model_dump())
     db.add(new_part)
@@ -164,8 +217,6 @@ async def create_part(
     
     # Eager load relationships
     part = db.query(Part).options(
-        joinedload(Part.brand_ref),
-        joinedload(Part.model_ref),
         joinedload(Part.category_ref)
     ).filter(Part.id == new_part.id).first()
     
@@ -183,8 +234,6 @@ async def search_parts(
     
     search_pattern = f"%{q}%"
     parts = db.query(Part).options(
-        joinedload(Part.brand_ref),
-        joinedload(Part.model_ref),
         joinedload(Part.category_ref)
     ).filter(
         (Part.name.ilike(search_pattern)) | 
@@ -199,15 +248,13 @@ async def list_parts(
     category: Optional[int] = Query(None),
     low_stock: bool = Query(False),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=10000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List parts inventory"""
     
     query = db.query(Part).options(
-        joinedload(Part.brand_ref),
-        joinedload(Part.model_ref),
         joinedload(Part.category_ref)
     )
     
@@ -245,6 +292,107 @@ async def get_inventory_summary(
     }
 
 
+@router.post("/inventory/bulk-upload", status_code=status.HTTP_200_OK)
+async def bulk_upload_parts(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.STOREKEEPER])),
+):
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload an Excel or CSV file.")
+    
+    try:
+        contents = await file.read()
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+            
+        df = df.fillna('')
+        df.columns = [str(c).strip().lower() for c in df.columns]
+        
+        success_count = 0
+        
+        for _, row in df.iterrows():
+            part_number = str(row.get('part number', row.get('part_number', ''))).strip()
+            name = str(row.get('name', '')).strip()
+            if not part_number or not name:
+                continue
+                
+            brand_name = str(row.get('brand', '')).strip()
+            category_name = str(row.get('category', '')).strip()
+            
+            # Resolve or create brand
+            brand_id = None
+            if brand_name:
+                brand = db.query(Brand).filter(Brand.name.ilike(brand_name)).first()
+                if not brand:
+                    brand = Brand(name=brand_name)
+                    db.add(brand)
+                    db.commit()
+                    db.refresh(brand)
+                brand_id = brand.id
+                
+            # Resolve or create category
+            category_id = None
+            if category_name:
+                category = db.query(Category).filter(Category.name.ilike(category_name)).first()
+                if not category:
+                    category = Category(name=category_name)
+                    db.add(category)
+                    db.commit()
+                    db.refresh(category)
+                category_id = category.id
+                
+            try:
+                unit_price = float(row.get('unit_price', row.get('unit price', 0)) or 0)
+            except ValueError:
+                unit_price = 0.0
+                
+            try:
+                stock = int(row.get('quantity_in_stock', row.get('stock', 0)) or 0)
+            except ValueError:
+                stock = 0
+                
+            try:
+                min_stock = int(row.get('minimum_stock_level', row.get('min stock', 0)) or 0)
+            except ValueError:
+                min_stock = 0
+                
+            description = str(row.get('description', '')).strip()
+            
+            # Check if part exists
+            existing_part = db.query(Part).filter(Part.part_number == part_number).first()
+            if existing_part:
+                # Update existing
+                existing_part.quantity_in_stock += stock
+                existing_part.unit_price = unit_price
+                existing_part.minimum_stock_level = min_stock or existing_part.minimum_stock_level
+                existing_part.description = description or existing_part.description
+                if brand_id: existing_part.brand_id = brand_id
+                if category_id: existing_part.category_id = category_id
+            else:
+                # Create new
+                part = Part(
+                    part_number=part_number,
+                    name=name,
+                    description=description,
+                    brand_id=brand_id,
+                    category_id=category_id,
+                    unit_price=unit_price,
+                    quantity_in_stock=stock,
+                )
+                db.add(part)
+                
+            db.commit()
+            success_count += 1
+            
+        return {"message": f"Successfully processed {success_count} parts."}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
 @router.put("/inventory/{part_id}", response_model=PartResponse)
 async def update_part(
     part_id: int,
@@ -262,12 +410,7 @@ async def update_part(
         )
     
     update_data = part_data.model_dump(exclude_unset=True)
-    validate_lookup_ids(
-        db,
-        update_data.get("brand_id"),
-        update_data.get("model_id"),
-        update_data.get("category_id"),
-    )
+    validate_lookup_ids(db, update_data.get("brand_id"), update_data.get("category_id"))
     for field, value in update_data.items():
         setattr(part, field, value)
     
@@ -276,7 +419,6 @@ async def update_part(
     # Reload with relationships
     part = db.query(Part).options(
         joinedload(Part.brand_ref),
-        joinedload(Part.model_ref),
         joinedload(Part.category_ref)
     ).filter(Part.id == part_id).first()
     
@@ -657,3 +799,4 @@ def build_parts_request_response(db: Session, request: PartsRequest):
         "created_at": request.created_at,
         "updated_at": request.updated_at
     }
+

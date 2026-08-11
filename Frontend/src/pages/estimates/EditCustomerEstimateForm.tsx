@@ -62,7 +62,7 @@ const EditCustomerEstimateForm: React.FC = () => {
         part_name: item.part_id ? `Part ${item.part_id}` : undefined,
         description: item.description,
         quantity: item.quantity,
-        unit_price: estData.include_tax ? item.unit_price : parseFloat((item.unit_price / 1.18).toFixed(2)),
+        unit_price: item.unit_price,
         item_comments: item.item_comments || '',
       }));
       setItems(estimateItems);
@@ -101,23 +101,23 @@ const EditCustomerEstimateForm: React.FC = () => {
   };
 
   const getItemEffectiveUnitPrice = (item: CustomerEstimateItemForm) => {
-    return !includeTax ? item.unit_price * 1.18 : item.unit_price;
+    return item.unit_price;
   };
 
   const getItemTotalPrice = (item: CustomerEstimateItemForm) => {
     return item.quantity * getItemEffectiveUnitPrice(item);
   };
 
-  const calculateSubtotal = () => {
+  const calculateTotal = () => {
     return items.reduce((sum, item) => sum + getItemTotalPrice(item), 0);
   };
 
-  const calculateTaxAmount = () => {
-    return includeTax ? calculateSubtotal() * 0.18 : 0;
+  const calculateSubtotal = () => {
+    return includeTax ? calculateTotal() / 1.18 : calculateTotal();
   };
 
-  const calculateTotal = () => {
-    return calculateSubtotal() + calculateTaxAmount();
+  const calculateTaxAmount = () => {
+    return includeTax ? calculateTotal() - calculateSubtotal() : 0;
   };
 
   const handleSubmit = async () => {

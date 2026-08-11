@@ -84,7 +84,7 @@ const PrintableJobDetail: React.FC<PrintableJobDetailProps> = ({
           <table className="w-full text-sm">
             <tbody>
               <Row label="Brand" value={job.brand_name} />
-              <Row label="Model" value={job.model_name || (job?.machine_model || "")} />
+              <Row label="Model" value={job?.machine_model || ""} />
               <Row label="Category" value={job.machine_category_name} />
               <Row label="Serial No." value={job.serial_number || 'N/A'} />
               <Row label="Job Type" value={job.job_type.replace(/_/g, ' ')} />

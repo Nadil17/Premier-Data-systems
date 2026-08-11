@@ -6,7 +6,7 @@ from sqlalchemy.sql import func
 import enum
 
 from app.core.database import Base
-from app.models.product import Brand, Category, ProductModel
+from app.models.product import Brand, Category
 
 
 class Part(Base):
@@ -18,7 +18,6 @@ class Part(Base):
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
-    model_id = Column(Integer, ForeignKey("models.id"), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     
     # Inventory
@@ -32,7 +31,6 @@ class Part(Base):
     
     # Relationships
     brand_ref = relationship("Brand", back_populates="parts")
-    model_ref = relationship("ProductModel", back_populates="parts")
     category_ref = relationship("Category", back_populates="parts")
     part_requests = relationship("PartsRequestItem", foreign_keys="PartsRequestItem.part_id", back_populates="part")
     

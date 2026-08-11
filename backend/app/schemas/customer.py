@@ -22,6 +22,8 @@ class CustomerBase(BaseModel):
     phone_2: Optional[str] = Field(None, max_length=20)
     phone_3: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
+    email_2: Optional[EmailStr] = None
+    email_3: Optional[EmailStr] = None
     category: CustomerCategory
     tax_number: Optional[str] = Field(None, max_length=50)
     vat_number: Optional[str] = Field(None, max_length=50)
@@ -43,6 +45,8 @@ class CustomerUpdate(BaseModel):
     phone_2: Optional[str] = Field(None, max_length=20)
     phone_3: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
+    email_2: Optional[EmailStr] = None
+    email_3: Optional[EmailStr] = None
     category: Optional[CustomerCategory] = None
     tax_number: Optional[str] = Field(None, max_length=50)
     vat_number: Optional[str] = Field(None, max_length=50)

@@ -20,7 +20,8 @@ from app.models.parts import (
     Part,
 )
 from app.models.handover import PartsHandover, HandoverStatus
-from app.models.product import Brand, Category, ProductModel
+from app.models.product import Brand, Category
+from app.models.estimate import CustomerEstimate, CustomerEstimateItem
 from app.schemas.job import (
     JobCreate, JobUpdate, JobResponse, JobSummary,
     JobAssignment, JobStartRepair, JobCompletion, JobDelivery, JobHistory,
@@ -41,7 +42,7 @@ def build_job_response(job, customer=None, assigned_engineer=None, has_previous_
         customer_name = "Unknown"
         customer_phone = ""
     else:
-        customer_name = customer.name
+        customer_name = customer.display_name
         customer_phone = customer.phone_1 or ""
 
     return {
@@ -53,6 +54,8 @@ def build_job_response(job, customer=None, assigned_engineer=None, has_previous_
         "customer": {
             "id": customer.id,
             "name": customer.name,
+            "category": getattr(customer, "category", None),
+            "company_name": getattr(customer, "company_name", None),
             "tax_number": getattr(customer, "tax_number", None) or getattr(customer, "vat_number", None),
             "vat_number": getattr(customer, "vat_number", None),
             "address": customer.address,
@@ -62,8 +65,6 @@ def build_job_response(job, customer=None, assigned_engineer=None, has_previous_
         "additional_phone": job.additional_phone,
         "brand_id": job.brand_id,
         "brand_name": job.brand_ref.name if job.brand_ref else None,
-        "model_id": job.model_id,
-        "model_name": job.model_ref.name if job.model_ref else None,
         "machine_category_id": job.machine_category_id,
         "machine_category_name": job.machine_category_ref.name if job.machine_category_ref else None,
         "machine_model": job.machine_model,
@@ -148,14 +149,12 @@ def _process_job_reassignment(db: Session, job: Job, previous_engineer_id: int, 
         job.has_pending_handover = True
 
 
-def validate_job_lookup_ids(db: Session, brand_id, model_id, machine_category_id):
-    """Validate that lookup FK IDs exist."""
+def validate_job_lookup_ids(db: Session, brand_id, machine_category_id):
     if brand_id is not None and not db.query(Brand).filter(Brand.id == brand_id).first():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand not found")
-    if model_id is not None and not db.query(ProductModel).filter(ProductModel.id == model_id).first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
+        
     if machine_category_id is not None and not db.query(Category).filter(Category.id == machine_category_id).first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine Category not found")
 
 
 def load_job_with_refs(db: Session, job_id: int):
@@ -165,7 +164,6 @@ def load_job_with_refs(db: Session, job_id: int):
         joinedload(Job.assigned_to),
         joinedload(Job.job_items),
         joinedload(Job.brand_ref),
-        joinedload(Job.model_ref),
         joinedload(Job.machine_category_ref),
     ).filter(Job.id == job_id).first()
 
@@ -187,7 +185,6 @@ async def get_all_jobs(
         joinedload(Job.assigned_to),
         joinedload(Job.job_items),
         joinedload(Job.brand_ref),
-        joinedload(Job.model_ref),
         joinedload(Job.machine_category_ref),
     )
     
@@ -249,12 +246,23 @@ async def create_job(
         )
     
     # Validate lookup FK IDs
-    validate_job_lookup_ids(db, job_data.brand_id, job_data.model_id, job_data.machine_category_id)
+    validate_job_lookup_ids(db, job_data.brand_id, job_data.machine_category_id)
     
-    # Generate unique job number
-    job_number = generate_job_number()
+    # Generate sequential unique job number starting from JOB-55800
+    base_seq = 55799
+    all_job_nums = db.query(Job.job_number).filter(Job.job_number.like('JOB-%')).all()
+    
+    for (j_num,) in all_job_nums:
+        suffix = j_num.replace('JOB-', '')
+        if suffix.isdigit():
+            val = int(suffix)
+            if val > base_seq:
+                base_seq = val
+                
+    job_number = f"JOB-{base_seq + 1}"
     while db.query(Job).filter(Job.job_number == job_number).first():
-        job_number = generate_job_number()
+        base_seq += 1
+        job_number = f"JOB-{base_seq + 1}"
     
     # Extract items data before creating job
     items_data = job_data.items
@@ -283,6 +291,55 @@ async def create_job(
     # Reload with relationships
     job = load_job_with_refs(db, new_job.id)
     return build_job_response(job, customer)
+
+
+@router.put("/{job_id}", response_model=JobResponse)
+async def update_job(
+    job_id: int,
+    job_data: JobUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.FRONT_DESK, UserRole.MANAGER]))
+):
+    """Update job details before assignment"""
+    
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+        
+    if job.status != JobStatus.UNASSIGNED or job.assigned_to_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job can only be edited before an engineer is assigned"
+        )
+        
+    # Validate lookup FK IDs if they are being updated
+    if job_data.brand_id is not None or job_data.machine_category_id is not None:
+        brand_id = job_data.brand_id if job_data.brand_id is not None else job.brand_id
+        cat_id = job_data.machine_category_id if job_data.machine_category_id is not None else job.machine_category_id
+        validate_job_lookup_ids(db, brand_id, cat_id)
+        
+    update_data = job_data.model_dump(exclude_unset=True, exclude={'items'})
+    for field, value in update_data.items():
+        setattr(job, field, value)
+        
+    if job_data.items is not None:
+        # Delete old items
+        db.query(JobItem).filter(JobItem.job_id == job_id).delete()
+        # Create new items
+        for item_data in job_data.items:
+            job_item = JobItem(
+                job_id=job.id,
+                **item_data.model_dump()
+            )
+            db.add(job_item)
+            
+    db.commit()
+    
+    job = load_job_with_refs(db, job.id)
+    return build_job_response(job)
 
 
 @router.get("/history/{serial_number}", response_model=List[JobHistory])
@@ -348,7 +405,7 @@ async def get_unassigned_jobs(
         result.append({
             "id": job.id,
             "job_number": job.job_number,
-            "customer_name": customer.name if customer else "Unknown",
+            "customer_name": customer.display_name if customer else "Unknown",
             "customer_phone": customer.phone_1 if customer else "",
             "machine_model": job.machine_model,
             "serial_number": job.serial_number,
@@ -484,15 +541,12 @@ async def update_job(
     
     # Update fields
     update_data = job_data.model_dump(exclude_unset=True, exclude={'items'})
-    
-    # Validate lookup FK IDs if provided
-    validate_job_lookup_ids(
-        db,
-        update_data.get("brand_id"),
-        update_data.get("model_id"),
-        update_data.get("machine_category_id"),
-    )
-    
+    if update_data.get("brand_id") or update_data.get("machine_category_id"):
+        validate_job_lookup_ids(
+            db, 
+            update_data.get("brand_id"), 
+            update_data.get("machine_category_id")
+        )  
     for field, value in update_data.items():
         setattr(job, field, value)
     
@@ -807,6 +861,38 @@ async def complete_job(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Cannot complete job: Part '{item.part.name}' return not yet approved by storekeeper"
                     )
+    
+    # Validate that all approved parts from customer estimates are actually collected
+    approved_estimates = db.query(CustomerEstimate).filter(
+        CustomerEstimate.job_id == job_id,
+        CustomerEstimate.approval_status.in_(["approved", "partially_approved"])
+    ).all()
+    
+    approved_parts_needed = {}
+    for estimate in approved_estimates:
+        for item in estimate.items:
+            if item.approval_status == "approved" and item.item_type == "part" and item.part_id:
+                approved_parts_needed[item.part_id] = approved_parts_needed.get(item.part_id, 0) + item.quantity
+    
+    if approved_parts_needed:
+        issued_parts_held = {}
+        if parts_requests:
+            for request in parts_requests:
+                for item in request.items:
+                    if item.part_id:
+                        valid_issued = (item.quantity_issued or 0) - (item.quantity_returned or 0)
+                        if valid_issued > 0:
+                            issued_parts_held[item.part_id] = issued_parts_held.get(item.part_id, 0) + valid_issued
+                            
+        for part_id, needed_qty in approved_parts_needed.items():
+            held_qty = issued_parts_held.get(part_id, 0)
+            if held_qty < needed_qty:
+                part = db.query(Part).get(part_id)
+                part_name = part.name if part else f"Part #{part_id}"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot complete job: Approved part '{part_name}' (x{needed_qty}) has not been fully collected from the store."
+                )
     
     # Validate and store Used Part Details (Serial Number and Warranty)
     used_part_counts = {}

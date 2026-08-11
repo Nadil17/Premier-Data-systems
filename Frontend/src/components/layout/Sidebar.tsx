@@ -50,9 +50,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         { to: '/estimates', icon: FileText, label: 'Estimates' },
       ],
       front_desk: [
+        { to: '/users', icon: UserCog, label: 'Users' },
         { to: '/customers', icon: Users, label: 'Customers' },
         { to: '/jobs', icon: Wrench, label: 'Jobs' },
+        { to: '/products', icon: Box, label: 'Products' },
+        { to: '/parts', icon: Package, label: 'Parts' },
         { to: '/estimates', icon: FileText, label: 'Estimates' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
       ],
       engineer: [
         { to: '/jobs', icon: Wrench, label: 'My Jobs' },
@@ -60,12 +64,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         { to: '/estimates', icon: FileText, label: 'Estimates' },
       ],
       storekeeper: [
+        { to: '/jobs', icon: Wrench, label: 'Jobs' },
         { to: '/parts', icon: Package, label: 'Parts Inventory' },
         { to: '/parts/requests', icon: FileText, label: 'Parts Requests' },
       ],
       accountant: [
-        { to: '/estimates', icon: FileText, label: 'Estimates' },
+        { to: '/users', icon: UserCog, label: 'Users' },
+        { to: '/customers', icon: Users, label: 'Customers' },
         { to: '/jobs', icon: Wrench, label: 'Jobs' },
+        { to: '/products', icon: Box, label: 'Products' },
+        { to: '/parts', icon: Package, label: 'Parts' },
+        { to: '/estimates', icon: FileText, label: 'Estimates' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
       ],
     };
 

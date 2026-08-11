@@ -12,7 +12,7 @@ from app.models.parts import (
     PartsRequest, PartsRequestStatus,
     PartsRequestItem, PartsRequestItemStatus
 )
-from app.models.product import Brand, ProductModel, Category, Product
+from app.models.product import Brand, Category, Product
 from app.models.estimate import (
     EngineerEstimate, EngineerEstimateItem,
     CustomerEstimate, CustomerEstimateItem,
@@ -29,7 +29,7 @@ __all__ = [
     "Part",
     "PartsRequest", "PartsRequestStatus",
     "PartsRequestItem", "PartsRequestItemStatus",
-    "Brand", "ProductModel", "Category", "Product",
+    "Brand", "Category", "Product",
     "EngineerEstimate", "EngineerEstimateItem",
     "CustomerEstimate", "CustomerEstimateItem",
     "EstimateItemType", "EstimateApprovalStatus",

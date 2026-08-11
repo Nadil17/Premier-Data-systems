@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
   ArrowLeft, Search, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp,
@@ -18,7 +18,6 @@ interface JobFormData {
   reported_by: string;
   additional_phone?: string;
   brand_id?: string;
-  model_id?: string;
   machine_category_id?: string;
   machine_model: string;
   serial_number?: string;
@@ -51,6 +50,8 @@ const FieldLabel: React.FC<{ htmlFor?: string; required?: boolean; children: Rea
 const JobForm: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
   const preSelectedCustomerId = searchParams.get('customer_id');
 
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
@@ -71,13 +72,10 @@ const JobForm: React.FC = () => {
 
   // Lookup state for brand, model, category
   const [brands, setBrands] = useState<LookupItem[]>([]);
-  const [models, setModels] = useState<LookupItem[]>([]);
   const [categories, setCategories] = useState<LookupItem[]>([]);
   const [newBrandName, setNewBrandName] = useState('');
-  const [newModelName, setNewModelName] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewBrand, setShowNewBrand] = useState(false);
-  const [showNewModel, setShowNewModel] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
 
   const {
@@ -95,16 +93,55 @@ const JobForm: React.FC = () => {
 
   const serialNumber = watch('serial_number');
   const selectedBrandId = watch('brand_id');
-  const selectedModelId = watch('model_id');
   const selectedCategoryId = watch('machine_category_id');
   const selectedMachineModel = watch('machine_model');
 
   useEffect(() => {
-    if (preSelectedCustomerId) {
+    if (isEditMode) {
+      loadJobToEdit(id);
+    } else if (preSelectedCustomerId) {
       loadCustomerById(Number(preSelectedCustomerId));
     }
     fetchLookups();
-  }, [preSelectedCustomerId]);
+  }, [id, isEditMode, preSelectedCustomerId]);
+
+  const loadJobToEdit = async (jobId: string) => {
+    try {
+      const job = await jobsAPI.getById(Number(jobId));
+      if (job.status !== 'unassigned' && job.assigned_to_id) {
+        toast.error('Assigned jobs cannot be edited');
+        navigate(`/jobs/${job.id}`);
+        return;
+      }
+      // Populate form
+      if (job.customer) {
+        setSelectedCustomer(job.customer);
+      }
+      setValue('customer_id', job.customer_id);
+      setValue('reported_by', job.reported_by || '');
+      setValue('additional_phone', job.additional_phone || '');
+      setValue('brand_id', job.brand_id ? String(job.brand_id) : '');
+      setValue('machine_category_id', job.machine_category_id ? String(job.machine_category_id) : '');
+      setValue('machine_model', job.machine_model || '');
+      setValue('serial_number', job.serial_number || '');
+      setValue('fault_description', job.fault_description || '');
+      setValue('job_type', job.job_type);
+      setValue('job_category', job.job_category);
+      setValue('remarks', job.remarks || '');
+      
+      if (job.items && job.items.length > 0) {
+        setItems(job.items.map((i: any) => ({
+          item_name: i.item_name,
+          quantity: i.quantity,
+          notes: i.notes || ''
+        })));
+        setShowItemsPanel(true);
+      }
+    } catch (error) {
+      toast.error('Failed to load job');
+      navigate('/jobs');
+    }
+  };
 
   useEffect(() => {
     if (customerSearch.length > 0) {
@@ -147,7 +184,7 @@ const JobForm: React.FC = () => {
     if (customersLoaded) return;
     setIsLoadingCustomers(true);
     try {
-      const results = await customersAPI.search("");
+      const results = await customersAPI.search({ limit: 10000 });
       setAllCustomers(results);
       setFilteredCustomers(results);
       setCustomersLoaded(true);
@@ -181,14 +218,12 @@ const JobForm: React.FC = () => {
   const fetchLookups = async () => {
     setIsLoadingProductCatalog(true);
     try {
-      const [brandsResult, modelsResult, categoriesResult, productsResult] = await Promise.allSettled([
+      const [brandsResult, categoriesResult, productsResult] = await Promise.allSettled([
         productsAPI.getBrands(),
-        productsAPI.getModels(),
         productsAPI.getCategories(),
-        productsAPI.getAll(0, 1000),
+        productsAPI.getAll(0, 10000),
       ]);
       if (brandsResult.status === 'fulfilled') setBrands(brandsResult.value);
-      if (modelsResult.status === 'fulfilled') setModels(modelsResult.value);
       if (categoriesResult.status === 'fulfilled') setCategories(categoriesResult.value);
       if (productsResult.status === 'fulfilled') {
         setProductCatalog(Array.isArray(productsResult.value) ? productsResult.value : []);
@@ -200,7 +235,7 @@ const JobForm: React.FC = () => {
     }
   };
 
-  const handleLookupCreate = async (type: 'brand' | 'model' | 'category', name: string) => {
+  const handleLookupCreate = async (type: 'brand' | 'category', name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
     try {
@@ -211,12 +246,6 @@ const JobForm: React.FC = () => {
         setValue('brand_id', String(created.id));
         setNewBrandName('');
         setShowNewBrand(false);
-      } else if (type === 'model') {
-        created = await productsAPI.createModel(trimmedName);
-        setModels((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-        setValue('model_id', String(created.id));
-        setNewModelName('');
-        setShowNewModel(false);
       } else {
         created = await productsAPI.createCategory(trimmedName);
         setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
@@ -258,7 +287,6 @@ const JobForm: React.FC = () => {
         reported_by: data.reported_by,
         additional_phone: data.additional_phone || undefined,
         brand_id: data.brand_id ? Number(data.brand_id) : undefined,
-        model_id: data.model_id ? Number(data.model_id) : undefined,
         machine_category_id: data.machine_category_id ? Number(data.machine_category_id) : undefined,
         machine_model: data.machine_model,
         serial_number: data.serial_number || undefined,
@@ -269,11 +297,17 @@ const JobForm: React.FC = () => {
         items: items.filter((item) => item.item_name.trim() !== ''),
       };
 
-      const newJob = await jobsAPI.create(jobData);
-      toast.success(`Job ${newJob.job_number} created successfully`);
-      navigate(`/jobs/${newJob.id}`);
+      if (isEditMode && id) {
+        await jobsAPI.update(Number(id), jobData);
+        toast.success(`Job updated successfully`);
+        navigate(`/jobs/${id}`);
+      } else {
+        const newJob = await jobsAPI.create(jobData);
+        toast.success(`Job ${newJob.job_number} created successfully`);
+        navigate(`/jobs/${newJob.id}`);
+      }
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to create job'));
+      toast.error(getErrorMessage(error, isEditMode ? 'Failed to update job' : 'Failed to create job'));
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -284,9 +318,8 @@ const JobForm: React.FC = () => {
     new Map(
       productCatalog
         .filter((product) => {
-          if (!selectedBrandId && !selectedModelId && !selectedCategoryId) return true;
+          if (!selectedBrandId && !selectedCategoryId) return true;
           if (selectedBrandId && product.brand_id !== Number(selectedBrandId)) return false;
-          if (selectedModelId && product.model_id !== Number(selectedModelId)) return false;
           if (selectedCategoryId && product.category_id !== Number(selectedCategoryId)) return false;
           return true;
         })
@@ -295,12 +328,13 @@ const JobForm: React.FC = () => {
   ).sort((a, b) => a.name.localeCompare(b.name));
 
   useEffect(() => {
-    if (!selectedMachineModel) return;
+    if (!selectedMachineModel || isLoadingProductCatalog) return;
     const isStillValid = machineModelOptions.some((product) => product.name === selectedMachineModel);
-    if (!isStillValid) {
+    // Only clear if we actually have options but none match. If options are empty, don't clear (might be loading or empty catalog).
+    if (!isStillValid && machineModelOptions.length > 0) {
       setValue('machine_model', '');
     }
-  }, [selectedBrandId, selectedModelId, selectedCategoryId, selectedMachineModel, machineModelOptions, setValue]);
+  }, [selectedBrandId, selectedCategoryId, selectedMachineModel, machineModelOptions, setValue, isLoadingProductCatalog]);
 
   const LookupField = ({
     label,
@@ -316,7 +350,7 @@ const JobForm: React.FC = () => {
     placeholder,
   }: {
     label: string;
-    registerName: 'brand_id' | 'model_id' | 'machine_category_id';
+    registerName: 'brand_id' | 'machine_category_id';
     options: { id: number; name: string }[];
     value: string | undefined;
     onChange: (val: string | number | undefined) => void;
@@ -324,7 +358,7 @@ const JobForm: React.FC = () => {
     newValue: string;
     setNewValue: (v: string) => void;
     setShowNew: (v: boolean) => void;
-    type: 'brand' | 'model' | 'category';
+    type: 'brand' | 'category';
     placeholder: string;
   }) => (
     <div>
@@ -395,8 +429,8 @@ const JobForm: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">New Job</h1>
-            <p className="text-xs text-gray-500">Create a new repair job</p>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">{isEditMode ? 'Edit Job' : 'New Job'}</h1>
+            <p className="text-xs text-gray-500">{isEditMode ? 'Modify unassigned job details' : 'Create a new repair job'}</p>
           </div>
         </div>
 
@@ -404,7 +438,7 @@ const JobForm: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/jobs')}
+            onClick={() => navigate(isEditMode ? `/jobs/${id}` : '/jobs')}
             disabled={isSaving}
             className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
           >
@@ -419,10 +453,10 @@ const JobForm: React.FC = () => {
             {isSaving ? (
               <>
                 <LoadingSpinner size="sm" />
-                Creating...
+                {isEditMode ? 'Saving...' : 'Creating...'}
               </>
             ) : (
-              'Create Job'
+              isEditMode ? 'Save Changes' : 'Create Job'
             )}
           </button>
         </div>
@@ -441,7 +475,9 @@ const JobForm: React.FC = () => {
             {selectedCustomer ? (
               <div className="flex items-start justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{selectedCustomer.name}</p>
+                  <p className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                    {((selectedCustomer.category === 'company' || selectedCustomer.category === 'dealer') && selectedCustomer.company_name) ? selectedCustomer.company_name : selectedCustomer.name}
+                  </p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {selectedCustomer.customer_id}
                     {selectedCustomer.phone_1 && <span className="ml-2">· {selectedCustomer.phone_1}</span>}
@@ -486,7 +522,9 @@ const JobForm: React.FC = () => {
                           onClick={() => selectCustomer(customer)}
                           className="w-full text-left px-3 py-2.5 hover:bg-gray-50 border-b last:border-b-0"
                         >
-                          <p className="font-medium text-gray-900 text-sm">{customer.name}</p>
+                          <p className="font-medium text-gray-900 text-sm">
+                            {((customer.category === 'company' || customer.category === 'dealer') && customer.company_name) ? customer.company_name : customer.name}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {(customer?.customer_id || "")} · {customer.phone_1}
                           </p>
@@ -546,19 +584,6 @@ const JobForm: React.FC = () => {
                 placeholder="Select Brand"
               />
               <LookupField
-                label="Model Series"
-                registerName="model_id"
-                options={models.map((m) => ({ id: m.id, name: m.name }))}
-                value={selectedModelId}
-                onChange={(val) => setValue('model_id', val ? String(val) : '')}
-                showNew={showNewModel}
-                newValue={newModelName}
-                setNewValue={setNewModelName}
-                setShowNew={setShowNewModel}
-                type="model"
-                placeholder="Select Model"
-              />
-              <LookupField
                 label="Category"
                 registerName="machine_category_id"
                 options={categories.map((c) => ({ id: c.id, name: c.name }))}
@@ -609,7 +634,7 @@ const JobForm: React.FC = () => {
               {errors.machine_model && (
                 <p className="mt-0.5 text-xs text-red-600">{errors.machine_model.message}</p>
               )}
-              {(selectedBrandId || selectedModelId || selectedCategoryId) &&
+              {(selectedBrandId || selectedCategoryId) &&
                 !isLoadingProductCatalog &&
                 machineModelOptions.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600">

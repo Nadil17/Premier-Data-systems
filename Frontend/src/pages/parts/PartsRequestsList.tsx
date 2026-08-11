@@ -87,7 +87,7 @@ const PartsRequestsList: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Parts Requests</h1>
           <p className="text-gray-600 mt-1">
-            {user?.role === 'storekeeper'
+            {['storekeeper', 'admin', 'accountant', 'front_desk'].includes(user?.role || '')
               ? 'Review and approve parts requests from engineers'
               : 'View your parts requests'}
           </p>

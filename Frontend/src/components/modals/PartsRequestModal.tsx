@@ -32,13 +32,11 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
 }) => {
   const [allParts, setAllParts] = useState<Part[]>([]);
   const [brands, setBrands] = useState<LookupItem[]>([]);
-  const [models, setModels] = useState<LookupItem[]>([]);
   const [categories, setCategories] = useState<LookupItem[]>([]);
   const [isLoadingParts, setIsLoadingParts] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [brandFilter, setBrandFilter] = useState<string>('all');
-  const [modelFilter, setModelFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -59,7 +57,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
       setReason('');
       setSearchQuery('');
       setBrandFilter('all');
-      setModelFilter('all');
       setCategoryFilter('all');
     }
   }, [isOpen, preselectedParts]);
@@ -78,16 +75,14 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
   const loadData = async () => {
     setIsLoadingParts(true);
     try {
-      const [partsData, brandsData, modelsData, categoriesData] = await Promise.all([
+      const [partsData, brandsData, categoriesData] = await Promise.all([
         partsAPI.getAll(0, 1000),
         partsAPI.getBrands(),
-        partsAPI.getModels(),
         partsAPI.getCategories(),
       ]);
       const loadedParts = Array.isArray(partsData) ? partsData : [];
       setAllParts(loadedParts);
       setBrands(brandsData);
-      setModels(modelsData);
       setCategories(categoriesData);
 
       if (preselectedParts && preselectedParts.length > 0) {
@@ -132,7 +127,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
           part.name.toLowerCase().includes(q) ||
           part.part_number.toLowerCase().includes(q) ||
           (part.brand_name && part.brand_name.toLowerCase().includes(q)) ||
-          (part.model_name && part.model_name.toLowerCase().includes(q)) ||
           (part.category_name && part.category_name.toLowerCase().includes(q)) ||
           (part.description && part.description.toLowerCase().includes(q));
         if (!matchesText) return false;
@@ -141,17 +135,14 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
       // Brand filter
       if (brandFilter !== 'all' && String(part.brand_id) !== brandFilter) return false;
 
-      // Model filter
-      if (modelFilter !== 'all' && String(part.model_id) !== modelFilter) return false;
-
       // Category filter
       if (categoryFilter !== 'all' && String(part.category_id) !== categoryFilter) return false;
 
       return true;
     });
-  }, [allParts, searchQuery, brandFilter, modelFilter, categoryFilter, requestItems]);
+  }, [allParts, searchQuery, brandFilter, categoryFilter, requestItems]);
 
-  const activeFilterCount = [brandFilter, modelFilter, categoryFilter].filter(f => f !== 'all').length;
+  const activeFilterCount = [brandFilter, categoryFilter].filter(f => f !== 'all').length;
 
   const addPart = (part: Part) => {
     setRequestItems((prev) => [
@@ -182,7 +173,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
 
   const clearFilters = () => {
     setBrandFilter('all');
-    setModelFilter('all');
     setCategoryFilter('all');
     setSearchQuery('');
   };
@@ -217,7 +207,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
       setReason('');
       setSearchQuery('');
       setBrandFilter('all');
-      setModelFilter('all');
       setCategoryFilter('all');
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to submit parts request'));
@@ -267,7 +256,7 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
                     }}
                     onFocus={() => setShowDropdown(true)}
                     className="input pl-10 pr-10 w-full"
-                    placeholder="Search by name, part number, brand, model, category..."
+                    placeholder="Search by name, part number, brand, category..."
                   />
                   {isLoadingParts && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -308,7 +297,7 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
               {/* Filter Dropdowns */}
               {showFilters && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">Brand</label>
                       <select
@@ -319,19 +308,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
                         <option value="all">All Brands</option>
                         {brands.map((b) => (
                           <option key={b.id} value={String(b.id)}>{b.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">Model</label>
-                      <select
-                        value={modelFilter}
-                        onChange={(e) => { setModelFilter(e.target.value); setShowDropdown(true); }}
-                        className="input w-full text-sm"
-                      >
-                        <option value="all">All Models</option>
-                        {models.map((m) => (
-                          <option key={m.id} value={String(m.id)}>{m.name}</option>
                         ))}
                       </select>
                     </div>
@@ -406,11 +382,6 @@ const PartsRequestModal: React.FC<PartsRequestModalProps> = ({
                                 {part.brand_name && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">
                                     {part.brand_name}
-                                  </span>
-                                )}
-                                {part.model_name && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
-                                    {part.model_name}
                                   </span>
                                 )}
                                 {part.category_name && (

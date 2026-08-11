@@ -141,17 +141,17 @@ export default function CustomerEstimateVerify() {
   const hasTax = estimate?.include_tax === true;
   const taxRate = estimate?.tax_rate || 18.0;
 
-  const approvedSubtotal = estimate?.items
+  const approvedItemsTotal = estimate?.items
     .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'approved')
     .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
-  const approvedTax = hasTax ? approvedSubtotal * (taxRate / 100) : 0;
-  const approvedTotal = approvedSubtotal + approvedTax;
+  const approvedSubtotal = hasTax ? approvedItemsTotal / (1 + taxRate / 100) : approvedItemsTotal;
+  const approvedTax = hasTax ? approvedItemsTotal - approvedSubtotal : 0;
+  const approvedTotal = approvedItemsTotal;
 
-  const rejectedSubtotal = estimate?.items
+  const rejectedItemsTotal = estimate?.items
     .filter(item => itemApprovals.find(ia => ia.item_id === item.id)?.approval_status === 'rejected')
     .reduce((sum, item) => sum + item.total_price, 0) ?? 0;
-  const rejectedTax = hasTax ? rejectedSubtotal * (taxRate / 100) : 0;
-  const rejectedTotal = rejectedSubtotal + rejectedTax;
+  const rejectedTotal = rejectedItemsTotal;
 
   // ─── OTP Step ───────────────────────────────────────────────────────────────
   if (step === 'otp') {

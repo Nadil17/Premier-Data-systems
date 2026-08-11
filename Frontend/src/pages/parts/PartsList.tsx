@@ -3,6 +3,8 @@ import { Package, Plus, Search, Edit2, X, AlertTriangle } from 'lucide-react';
 import { partsAPI } from '../../api/endpoints';
 import type { Part, PartCreate, PartUpdate, LookupItem } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ManageDataModal from '../../components/modals/ManageDataModal';
+import BulkUploadModal from '../../components/modals/BulkUploadModal';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/apiErrors';
 import toast from 'react-hot-toast';
@@ -11,7 +13,6 @@ const PartsList: React.FC = () => {
   const { user } = useAuthStore();
   const [parts, setParts] = useState<Part[]>([]);
   const [brands, setBrands] = useState<LookupItem[]>([]);
-  const [models, setModels] = useState<LookupItem[]>([]);
   const [categories, setCategories] = useState<LookupItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,13 +23,13 @@ const PartsList: React.FC = () => {
 
   // Inline creation state
   const [newBrandName, setNewBrandName] = useState('');
-  const [newModelName, setNewModelName] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewBrand, setShowNewBrand] = useState(false);
-  const [showNewModel, setShowNewModel] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
-  const canManage = user?.role === 'admin' || user?.role === 'storekeeper';
+  const canManage = user?.role === 'admin' || user?.role === 'storekeeper' || user?.role === 'front_desk' || user?.role === 'accountant';
 
   // Form state
   const [formData, setFormData] = useState({
@@ -36,7 +37,6 @@ const PartsList: React.FC = () => {
     name: '',
     description: '',
     brand_id: '' as string | number,
-    model_id: '' as string | number,
     category_id: '' as string | number,
     quantity_in_stock: 0,
     minimum_stock_level: 0,
@@ -51,7 +51,7 @@ const PartsList: React.FC = () => {
   const fetchParts = async () => {
     setIsLoading(true);
     try {
-      const data = await partsAPI.getAll(0, 200);
+      const data = await partsAPI.getAll(0, 5000);
       setParts(data?.items || (Array.isArray(data) ? data : []));
     } catch (error) {
       toast.error('Failed to fetch parts');
@@ -64,13 +64,11 @@ const PartsList: React.FC = () => {
 
   const fetchLookups = async () => {
     try {
-      const [brandsData, modelsData, categoriesData] = await Promise.all([
+      const [brandsData, categoriesData] = await Promise.all([
         partsAPI.getBrands(),
-        partsAPI.getModels(),
         partsAPI.getCategories(),
       ]);
       setBrands(brandsData);
-      setModels(modelsData);
       setCategories(categoriesData);
     } catch (error) {
       console.error('Failed to fetch lookups:', error);
@@ -91,20 +89,6 @@ const PartsList: React.FC = () => {
     }
   };
 
-  const handleAddModel = async () => {
-    if (!newModelName.trim()) return;
-    try {
-      const model = await partsAPI.createModel(newModelName.trim());
-      setModels(prev => [...prev, model]);
-      setFormData(prev => ({ ...prev, model_id: model.id }));
-      setNewModelName('');
-      setShowNewModel(false);
-      toast.success(`Model "${model.name}" created`);
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to create model'));
-    }
-  };
-
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     try {
@@ -119,13 +103,40 @@ const PartsList: React.FC = () => {
     }
   };
 
+  const handleBulkAdd = async (type: 'brand' | 'category', names: string[]) => {
+    try {
+      if (type === 'brand') {
+        await partsAPI.bulkCreateBrand(names);
+      } else {
+        await partsAPI.bulkCreateCategory(names);
+      }
+      fetchLookups();
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to bulk add ${type}`));
+      throw error;
+    }
+  };
+
+  const handleDeleteLookup = async (type: 'brand' | 'category', id: number) => {
+    try {
+      if (type === 'brand') {
+        await partsAPI.deleteBrand(id);
+      } else {
+        await partsAPI.deleteCategory(id);
+      }
+      fetchLookups();
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to delete ${type}`));
+      throw error;
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       part_number: '',
       name: '',
       description: '',
       brand_id: '',
-      model_id: '',
       category_id: '',
       quantity_in_stock: 0,
       minimum_stock_level: 0,
@@ -134,10 +145,8 @@ const PartsList: React.FC = () => {
     setEditingPart(null);
     setShowForm(false);
     setShowNewBrand(false);
-    setShowNewModel(false);
     setShowNewCategory(false);
     setNewBrandName('');
-    setNewModelName('');
     setNewCategoryName('');
   };
 
@@ -153,7 +162,6 @@ const PartsList: React.FC = () => {
       name: part.name,
       description: part.description || '',
       brand_id: part.brand_id || '',
-      model_id: part.model_id || '',
       category_id: part.category_id || '',
       quantity_in_stock: part.quantity_in_stock,
       minimum_stock_level: part.minimum_stock_level,
@@ -177,7 +185,6 @@ const PartsList: React.FC = () => {
           name: formData.name,
           description: formData.description || undefined,
           brand_id: formData.brand_id ? Number(formData.brand_id) : undefined,
-          model_id: formData.model_id ? Number(formData.model_id) : undefined,
           category_id: formData.category_id ? Number(formData.category_id) : undefined,
           quantity_in_stock: formData.quantity_in_stock,
           minimum_stock_level: formData.minimum_stock_level,
@@ -191,7 +198,6 @@ const PartsList: React.FC = () => {
           name: formData.name,
           description: formData.description || undefined,
           brand_id: formData.brand_id ? Number(formData.brand_id) : undefined,
-          model_id: formData.model_id ? Number(formData.model_id) : undefined,
           category_id: formData.category_id ? Number(formData.category_id) : undefined,
           quantity_in_stock: formData.quantity_in_stock,
           minimum_stock_level: formData.minimum_stock_level,
@@ -215,8 +221,7 @@ const PartsList: React.FC = () => {
     const matchesSearch = !searchQuery ||
       part.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       part.part_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (part.brand_name && part.brand_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (part.model_name && part.model_name.toLowerCase().includes(searchQuery.toLowerCase()));
+      (part.brand_name && part.brand_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCategory = categoryFilter === 'all' || String(part.category_id) === categoryFilter;
 
@@ -242,10 +247,20 @@ const PartsList: React.FC = () => {
           </p>
         </div>
         {canManage && (
-          <button onClick={openCreateForm} className="btn-primary flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add Part
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setIsBulkUploadOpen(true)} className="btn-secondary flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
+              <Plus className="h-5 w-5" />
+              Bulk Upload
+            </button>
+            <button onClick={() => setIsBulkAddOpen(true)} className="btn-secondary flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Manage Data
+            </button>
+            <button onClick={openCreateForm} className="btn-primary flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Add Part
+            </button>
+          </div>
         )}
       </div>
 
@@ -258,7 +273,7 @@ const PartsList: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input pl-10 w-full"
-            placeholder="Search by name, part number, brand, or model..."
+            placeholder="Search by name, part number, brand, or category..."
           />
         </div>
         <select
@@ -351,46 +366,6 @@ const PartsList: React.FC = () => {
                       </select>
                       {canManage && (
                         <button type="button" onClick={() => setShowNewBrand(true)} className="btn-secondary px-3 text-sm" title="Add new brand">
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Model - Dropdown with Add New */}
-                <div>
-                  <label className="label">Model</label>
-                  {showNewModel ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newModelName}
-                        onChange={(e) => setNewModelName(e.target.value)}
-                        className="input flex-1"
-                        placeholder="New model name"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddModel())}
-                      />
-                      <button type="button" onClick={handleAddModel} className="btn-primary px-3 text-sm">Add</button>
-                      <button type="button" onClick={() => { setShowNewModel(false); setNewModelName(''); }} className="btn-secondary px-3 text-sm">
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <select
-                        value={formData.model_id}
-                        onChange={(e) => setFormData({ ...formData, model_id: e.target.value })}
-                        className="input flex-1"
-                      >
-                        <option value="">— None —</option>
-                        {models.map(m => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
-                      {canManage && (
-                        <button type="button" onClick={() => setShowNewModel(true)} className="btn-secondary px-3 text-sm" title="Add new model">
                           <Plus className="h-4 w-4" />
                         </button>
                       )}
@@ -529,7 +504,6 @@ const PartsList: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part #</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -551,7 +525,6 @@ const PartsList: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{part.brand_name || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{part.model_name || '—'}</td>
                       <td className="px-4 py-3">
                         {part.category_name ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -592,6 +565,30 @@ const PartsList: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ManageDataModal
+        isOpen={isBulkAddOpen}
+        onClose={() => setIsBulkAddOpen(false)}
+        onSave={handleBulkAdd}
+        onDelete={handleDeleteLookup}
+        brands={brands}
+        categories={categories}
+        defaultType="brand"
+      />
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        onUpload={async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await partsAPI.bulkUpload(formData);
+          toast.success(res.message || 'Parts uploaded successfully!');
+          fetchParts();
+          fetchLookups();
+        }}
+        title="Bulk Upload Parts"
+        expectedColumns={['Part Number', 'Name', 'Description', 'Brand', 'Category', 'Unit Price', 'Stock', 'Min Stock']}
+      />
     </div>
   );
 };

@@ -65,7 +65,7 @@ async def search_customers(
     query: Optional[str] = Query(None, description="Search by name, phone, or customer ID"),
     category: Optional[str] = Query(None, description="Filter by category"),
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=10000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -131,7 +131,7 @@ async def get_customer(
         jobs.append({
             "id": job.id,
             "job_number": job.job_number,
-            "customer_name": customer.name,
+            "customer_name": customer.display_name,
             "customer_phone": customer.phone_1,
             "machine_model": job.machine_model,
             "serial_number": job.serial_number,

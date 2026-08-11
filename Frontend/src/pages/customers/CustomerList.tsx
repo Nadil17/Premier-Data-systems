@@ -36,7 +36,7 @@ const CustomerList: React.FC = () => {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const response = await customersAPI.search('');
+      const response = await customersAPI.search({ limit: 10000 });
       setCustomers(response);
       setFilteredCustomers(response);
     } catch (error) {

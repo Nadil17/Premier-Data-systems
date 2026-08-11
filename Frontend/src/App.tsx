@@ -96,7 +96,7 @@ function App() {
         <Route
           path="/users"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'front_desk', 'accountant']}>
               <MainLayout>
                 <UsersList />
               </MainLayout>
@@ -108,7 +108,7 @@ function App() {
         <Route
           path="/customers"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'accountant']}>
               <MainLayout>
                 <CustomerList />
               </MainLayout>
@@ -118,7 +118,7 @@ function App() {
         <Route
           path="/customers/new"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'accountant']}>
               <MainLayout>
                 <CustomerForm />
               </MainLayout>
@@ -128,7 +128,7 @@ function App() {
         <Route
           path="/customers/:id"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'engineer']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'engineer', 'accountant']}>
               <MainLayout>
                 <CustomerDetail />
               </MainLayout>
@@ -138,7 +138,7 @@ function App() {
         <Route
           path="/customers/:id/edit"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'accountant']}>
               <MainLayout>
                 <CustomerForm />
               </MainLayout>
@@ -160,7 +160,7 @@ function App() {
         <Route
           path="/jobs/new"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'accountant']}>
               <MainLayout>
                 <JobForm />
               </MainLayout>
@@ -177,12 +177,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/jobs/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'front_desk', 'accountant']}>
+              <MainLayout>
+                <JobForm />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* Parts Routes */}
         <Route
           path="/products"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'front_desk', 'accountant']}>
               <MainLayout>
                 <ProductsList />
               </MainLayout>
@@ -192,7 +202,7 @@ function App() {
         <Route
           path="/parts"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer', 'accountant']}>
               <MainLayout>
                 <PartsList />
               </MainLayout>
@@ -202,7 +212,7 @@ function App() {
         <Route
           path="/parts/requests"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer', 'accountant']}>
               <MainLayout>
                 <PartsRequestsList />
               </MainLayout>
@@ -212,7 +222,7 @@ function App() {
         <Route
           path="/parts/requests/:id"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'storekeeper', 'engineer', 'accountant']}>
               <MainLayout>
                 <PartsRequestDetail />
               </MainLayout>
@@ -224,7 +234,7 @@ function App() {
         <Route
           path="/estimates"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'accountant', 'engineer']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'accountant', 'engineer', 'front_desk']}>
               <MainLayout>
                 <EstimatesList />
               </MainLayout>
@@ -234,7 +244,7 @@ function App() {
         <Route
           path="/estimates/create/:jobId"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager']}>
+            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager', 'front_desk']}>
               <MainLayout>
                 <CustomerEstimateForm />
               </MainLayout>
@@ -244,7 +254,7 @@ function App() {
         <Route
           path="/estimates/customer/:estimateId/edit"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager']}>
+            <ProtectedRoute allowedRoles={['admin', 'accountant', 'manager', 'front_desk']}>
               <MainLayout>
                 <EditCustomerEstimateForm />
               </MainLayout>
@@ -268,7 +278,7 @@ function App() {
         <Route
           path="/users"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['admin', 'front_desk', 'accountant']}>
               <MainLayout>
                 <div className="p-6">
                   <h1 className="text-2xl font-bold">Users - Coming Soon</h1>

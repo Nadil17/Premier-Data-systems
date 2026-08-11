@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.time import utc_now_aware
-from app.models.user import User
+from app.models.user import User, UserRole
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -31,15 +31,15 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
-    
+
     if expires_delta:
         expire = utc_now_aware() + expires_delta
     else:
         expire = utc_now_aware() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    
+
     return encoded_jwt
 
 
@@ -62,36 +62,48 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
-    
+
     try:
         user_id = int(payload.get("sub"))
     except (ValueError, TypeError):
         raise credentials_exception
-        
+
     if user_id is None:
         raise credentials_exception
-    
+
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user"
         )
-    
+
     return user
 
 
 def require_role(allowed_roles: list[str]):
-    """Decorator to check user role"""
+    """Decorator to check user role.
+
+    Front Desk and Accountant users are treated as Admin-equivalent: whenever
+    ADMIN is in the allowed_roles list, FRONT_DESK and ACCOUNTANT are
+    automatically included as well.
+    """
+    effective_roles = list(allowed_roles)
+    if UserRole.ADMIN in effective_roles:
+        if UserRole.FRONT_DESK not in effective_roles:
+            effective_roles.append(UserRole.FRONT_DESK)
+        if UserRole.ACCOUNTANT not in effective_roles:
+            effective_roles.append(UserRole.ACCOUNTANT)
+
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in allowed_roles:
+        if current_user.role not in effective_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions"

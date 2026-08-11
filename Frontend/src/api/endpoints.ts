@@ -76,19 +76,22 @@ export const customersAPI = {
 export const partsAPI = {
   getAll: (skip = 0, limit = 200, params?: any) =>
     // The backend validates inventory limits to a maximum of 1000.
-    api.get('/parts/inventory', { params: { skip, limit: Math.min(limit, 1000), ...params } }),
+    api.get('/parts/inventory', { params: { skip, limit: Math.min(limit, 10000), ...params } }),
   getById: (id: number) => api.get(`/parts/inventory/${id}`),
   create: (data: any) => api.post('/parts/inventory', data),
   update: (id: number, data: any) => api.put(`/parts/inventory/${id}`, data),
   delete: (id: number) => api.delete(`/parts/inventory/${id}`),
+  bulkUpload: (data: FormData) => api.post('/parts/inventory/bulk-upload', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
 
   // Lookup lists
   getBrands: () => api.get('/parts/brands'),
-  getModels: () => api.get('/parts/models'),
   getCategories: () => api.get('/parts/categories'),
   createBrand: (name: string) => api.post('/parts/brands', { name }),
-  createModel: (name: string) => api.post('/parts/models', { name }),
   createCategory: (name: string) => api.post('/parts/categories', { name }),
+  bulkCreateBrand: (names: string[]) => api.post('/parts/brands/bulk', { names }),
+  bulkCreateCategory: (names: string[]) => api.post('/parts/categories/bulk', { names }),
+  deleteBrand: (id: number) => api.delete(`/parts/brands/${id}`),
+  deleteCategory: (id: number) => api.delete(`/parts/categories/${id}`),
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -188,21 +191,23 @@ export const usersAPI = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// PRODUCTS (lookup tables: brands, models, categories)
+// PRODUCTS (lookup tables: brands, categories)
 // ─────────────────────────────────────────────────────────────
 export const productsAPI = {
   getAll: (skipOrParams?: number | any, limit = 100) =>
     api.get('/products', { params: typeof skipOrParams === 'object' ? skipOrParams : { skip: skipOrParams ?? 0, limit } }),
   getBrands: () => api.get('/products/brands'),
-  getModels: (brandId?: number) =>
-    api.get('/products/models', { params: brandId ? { brand_id: brandId } : undefined }),
   getCategories: () => api.get('/products/categories'),
   create: (data: any) => api.post('/products', data),
   update: (id: number, data: any) => api.put(`/products/${id}`, data),
   delete: (id: number) => api.delete(`/products/${id}`),
+  bulkUpload: (data: FormData) => api.post('/products/bulk-upload', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   createBrand: (name: string) => api.post('/products/brands', { name }),
-  createModel: (name: string) => api.post('/products/models', { name }),
   createCategory: (name: string) => api.post('/products/categories', { name }),
+  bulkCreateBrand: (names: string[]) => api.post('/products/brands/bulk', { names }),
+  bulkCreateCategory: (names: string[]) => api.post('/products/categories/bulk', { names }),
+  deleteBrand: (id: number) => api.delete(`/products/brands/${id}`),
+  deleteCategory: (id: number) => api.delete(`/products/categories/${id}`),
 };
 
 // ─────────────────────────────────────────────────────────────

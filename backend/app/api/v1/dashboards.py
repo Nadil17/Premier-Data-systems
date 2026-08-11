@@ -63,7 +63,7 @@ async def get_engineer_dashboard(
         job_summaries.append({
             "id": job.id,
             "job_number": job.job_number,
-            "customer_name": customer.name if customer else "Unknown",
+            "customer_name": customer.display_name if customer else "Unknown",
             "customer_phone": customer.phone_1 if customer else "",
             "machine_model": job.machine_model,
             "serial_number": job.serial_number,

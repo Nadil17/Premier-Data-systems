@@ -16,6 +16,8 @@ interface CustomerFormData {
   phone_2?: string;
   phone_3?: string;
   email?: string;
+  email_2?: string;
+  email_3?: string;
   category: 'individual' | 'company' | 'dealer';
   tax_number?: string;
   vat_number?: string;
@@ -57,6 +59,8 @@ const CustomerForm: React.FC = () => {
         phone_2: customer.phone_2 || '',
         phone_3: customer.phone_3 || '',
         email: customer.email || '',
+        email_2: customer.email_2 || '',
+        email_3: customer.email_3 || '',
         category: customer.category,
         tax_number: customer.tax_number || customer.vat_number || '',
         vat_number: customer.vat_number || '',
@@ -81,6 +85,8 @@ const CustomerForm: React.FC = () => {
         phone_2: data.phone_2 || undefined,
         phone_3: data.phone_3 || undefined,
         email: data.email || undefined,
+        email_2: data.email_2 || undefined,
+        email_3: data.email_3 || undefined,
         tax_number: data.tax_number || undefined,
         vat_number: data.vat_number || undefined,
         website: data.website || undefined,
@@ -274,7 +280,7 @@ const CustomerForm: React.FC = () => {
 
               <div>
                 <label htmlFor="email" className="label">
-                  Email
+                  Primary Email
                 </label>
                 <input
                   type="email"
@@ -290,6 +296,48 @@ const CustomerForm: React.FC = () => {
                 />
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="email_2" className="label">
+                  Secondary Email
+                </label>
+                <input
+                  type="email"
+                  id="email_2"
+                  {...register('email_2', {
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address',
+                    },
+                  })}
+                  className="input"
+                  placeholder="secondary@example.com"
+                />
+                {errors.email_2 && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email_2.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="email_3" className="label">
+                  Additional Email
+                </label>
+                <input
+                  type="email"
+                  id="email_3"
+                  {...register('email_3', {
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address',
+                    },
+                  })}
+                  className="input"
+                  placeholder="additional@example.com"
+                />
+                {errors.email_3 && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email_3.message}</p>
                 )}
               </div>
 

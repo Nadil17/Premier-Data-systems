@@ -32,6 +32,8 @@ class Customer(Base):
     phone_2 = Column(String(20))
     phone_3 = Column(String(20))
     email = Column(String(255), index=True)
+    email_2 = Column(String(255), index=True)
+    email_3 = Column(String(255), index=True)
     
     # Additional Information
     category = Column(Enum(CustomerCategory, values_callable=lambda e: [member.value for member in e]), nullable=False)
@@ -46,6 +48,12 @@ class Customer(Base):
     
     # Relationships
     jobs = relationship("Job", back_populates="customer", cascade="all, delete-orphan")
+    
+    @property
+    def display_name(self):
+        if self.category in [CustomerCategory.COMPANY, CustomerCategory.DEALER] and self.company_name:
+            return self.company_name
+        return self.name
     
     def __repr__(self):
         return f"<Customer {self.customer_id}: {self.name}>"

@@ -4,7 +4,6 @@ import {
   Wrench,
   Users,
   Package,
-  FileText,
   TrendingUp,
   Clock,
   CheckCircle,
@@ -54,10 +53,12 @@ const Dashboard: React.FC = () => {
       // Fetch role-specific dashboard
       switch (user.role) {
         case 'admin':
+        case 'front_desk':
+        case 'accountant':
         case 'manager':
           data = await dashboardAPI.getManagerDashboard();
           setStats(data);
-          // Fetch all customer estimates for manager/admin dashboard
+          // Fetch all customer estimates for manager/admin/front_desk dashboard
           try {
             const estimates = await customerEstimatesAPI.getAll(0, 100);
             setCustomerEstimates(estimates);
@@ -122,47 +123,6 @@ const Dashboard: React.FC = () => {
             console.error("Failed to fetch pending returns", err);
           }
           break;
-        case 'accountant':
-          data = await dashboardAPI.getAccountantDashboard();
-          setStats({
-            total_jobs: data.pending_engineer_estimates,
-            unassigned_jobs: data.pending_customer_approvals,
-            in_progress_jobs: data.approved_estimates_today,
-            completed_jobs: data.rejected_estimates_today,
-            delivered_jobs: data.completed_jobs_pending_review,
-            total_engineers: 0,
-            total_customers: 0,
-            jobs_by_status: {},
-          });
-          // Fetch completed jobs pending review
-          try {
-            const allJobs = await jobsAPI.getAll(0, 100);
-            const pendingReviewJobs = allJobs.items.filter((j: any) => j.status === 'waiting_for_accountant_review');
-            setJobs(pendingReviewJobs);
-          } catch (err) {
-            console.error("Failed to fetch pending review jobs", err);
-          }
-          // Fetch all accountant-generated customer estimates
-          try {
-            const estimates = await customerEstimatesAPI.getAll(0, 200);
-            setCustomerEstimates(estimates);
-          } catch (err) {
-            console.error("Failed to fetch customer estimates", err);
-          }
-          break;
-        case 'front_desk':
-          data = await dashboardAPI.getFrontDeskDashboard();
-          setStats({
-            total_jobs: data.new_jobs_today,
-            unassigned_jobs: 0,
-            in_progress_jobs: data.jobs_ready_for_delivery,
-            completed_jobs: data.delivered_today,
-            delivered_jobs: data.delivered_today,
-            total_engineers: 0,
-            total_customers: data.new_customers_today,
-            jobs_by_status: {},
-          });
-          break;
         default:
           // No dashboard available for this role
           console.warn(`No dashboard configured for role: ${user.role}`);
@@ -199,6 +159,8 @@ const Dashboard: React.FC = () => {
 
     switch (user.role) {
       case 'admin':
+      case 'front_desk':
+      case 'accountant':
       case 'manager':
         return [
           { title: 'Total Jobs', value: stats?.total_jobs || 0, icon: Wrench, color: 'bg-blue-500', link: '/jobs' },
@@ -221,20 +183,6 @@ const Dashboard: React.FC = () => {
           { title: 'Low Stock Items', value: stats?.unassigned_jobs || 0, icon: AlertCircle, color: 'bg-yellow-500', link: '/parts?filter=low-stock' },
           { title: 'Approved Today', value: stats?.in_progress_jobs || 0, icon: CheckCircle, color: 'bg-green-500', link: '/parts/requests' },
           { title: 'Out of Stock', value: stats?.total_customers || 0, icon: AlertCircle, color: 'bg-red-500', link: '/parts?filter=out-of-stock' },
-        ];
-      case 'accountant':
-        return [
-          { title: 'Pending Estimates', value: stats?.total_jobs || 0, icon: FileText, color: 'bg-blue-500', link: '/estimates' },
-          { title: 'Awaiting Approval', value: stats?.unassigned_jobs || 0, icon: Clock, color: 'bg-yellow-500', link: '/estimates' },
-          { title: 'Approved Today', value: stats?.in_progress_jobs || 0, icon: CheckCircle, color: 'bg-green-500', link: '/estimates' },
-          { title: 'Pending Review', value: stats?.delivered_jobs || 0, icon: FileText, color: 'bg-purple-500', link: '/jobs' },
-        ];
-      case 'front_desk':
-        return [
-          { title: 'New Jobs Today', value: stats?.total_jobs || 0, icon: Wrench, color: 'bg-blue-500', link: '/jobs' },
-          { title: 'New Customers', value: stats?.total_customers || 0, icon: Users, color: 'bg-purple-500', link: '/customers' },
-          { title: 'Ready for Delivery', value: stats?.in_progress_jobs || 0, icon: Truck, color: 'bg-green-500', link: '/jobs?status=ready' },
-          { title: 'Delivered Today', value: stats?.delivered_jobs || 0, icon: CheckCircle, color: 'bg-emerald-500', link: '/jobs?status=delivered' },
         ];
       default:
         return [];
@@ -335,7 +283,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Completed Jobs Pending Review - Only for Accountants */}
-      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper') && (
+      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper' || user?.role === 'front_desk') && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Completed Jobs Pending Review</h2>
@@ -404,7 +352,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Accountant-Generated Customer Estimates */}
-      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager') && (
+      {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager' || user?.role === 'front_desk') && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">My Customer Estimates</h2>
@@ -485,7 +433,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {/* Pending Returns - Only for Storekeepers */}
-      {(user?.role === 'storekeeper' || user?.role === 'admin') && (
+      {(user?.role === 'storekeeper' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant') && (
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Pending Returns</h2>

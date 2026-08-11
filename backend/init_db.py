@@ -8,7 +8,7 @@ from app.core.database import SessionLocal, engine, Base
 from app.models.user import User, UserRole
 from app.models.customer import Customer, CustomerCategory
 from app.models.parts import Part
-from app.models.product import Brand, Category, ProductModel
+from app.models.product import Brand, Category
 from app.core.security import get_password_hash
 import logging
 
@@ -123,9 +123,6 @@ def init_db():
 
             generic_brand = get_or_create_lookup(db, Brand, "Generic")
             hp_brand = get_or_create_lookup(db, Brand, "HP")
-            universal_model = get_or_create_lookup(db, ProductModel, "Universal")
-            elitebook_model = get_or_create_lookup(db, ProductModel, "EliteBook 840 G5")
-            laserjet_model = get_or_create_lookup(db, ProductModel, "LaserJet P1102")
             hardware_category = get_or_create_lookup(db, Category, "Hardware")
             consumable_category = get_or_create_lookup(db, Category, "Consumable")
             accessory_category = get_or_create_lookup(db, Category, "Accessory")
@@ -136,7 +133,6 @@ def init_db():
                     "name": "256GB SSD",
                     "description": "SATA 2.5-inch SSD 256GB",
                     "brand_id": generic_brand.id,
-                    "model_id": universal_model.id,
                     "category_id": hardware_category.id,
                     "quantity_in_stock": 10,
                     "minimum_stock_level": 5,
@@ -145,9 +141,8 @@ def init_db():
                 {
                     "part_number": "RAM-DDR4-8GB",
                     "name": "8GB DDR4 RAM",
-                    "description": "DDR4 2666MHz 8GB Memory",
+                    "description": "8GB DDR4 2666MHz RAM",
                     "brand_id": generic_brand.id,
-                    "model_id": universal_model.id,
                     "category_id": hardware_category.id,
                     "quantity_in_stock": 15,
                     "minimum_stock_level": 8,
@@ -156,9 +151,8 @@ def init_db():
                 {
                     "part_number": "TONER-HP-85A",
                     "name": "HP 85A Toner Cartridge",
-                    "description": "Compatible HP LaserJet P1102",
+                    "description": "Original Black Toner Cartridge for HP LaserJet",
                     "brand_id": hp_brand.id,
-                    "model_id": laserjet_model.id,
                     "category_id": consumable_category.id,
                     "quantity_in_stock": 20,
                     "minimum_stock_level": 10,
@@ -167,9 +161,8 @@ def init_db():
                 {
                     "part_number": "LCD-15.6-FHD",
                     "name": "15.6\" FHD LCD Screen",
-                    "description": "1920x1080 LCD Panel",
-                    "brand_id": generic_brand.id,
-                    "model_id": elitebook_model.id,
+                    "description": "Replacement battery for HP EliteBook 840 G5",
+                    "brand_id": hp_brand.id,
                     "category_id": hardware_category.id,
                     "quantity_in_stock": 5,
                     "minimum_stock_level": 3,
@@ -180,7 +173,6 @@ def init_db():
                     "name": "65W Power Adapter",
                     "description": "Universal laptop charger",
                     "brand_id": generic_brand.id,
-                    "model_id": universal_model.id,
                     "category_id": accessory_category.id,
                     "quantity_in_stock": 12,
                     "minimum_stock_level": 6,

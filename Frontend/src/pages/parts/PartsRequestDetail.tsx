@@ -36,7 +36,7 @@ const PartsRequestDetail: React.FC = () => {
   const [itemErrors, setItemErrors] = useState<Record<number, ItemApprovalError>>({});
   const [storekeeperNotes, setStorekeeperNotes] = useState('');
 
-  const isStorekeeper = user?.role === 'storekeeper' || user?.role === 'admin';
+  const isStorekeeper = user?.role === 'storekeeper' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant';
   const canApprove = isStorekeeper && request?.status === 'pending';
 
   useEffect(() => {

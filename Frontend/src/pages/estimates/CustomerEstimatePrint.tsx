@@ -55,7 +55,11 @@ const CustomerEstimatePrint: React.FC<CustomerEstimatePrintProps> = ({ estimate 
       <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[11px] mb-4">
         <div>
           <span className="font-bold">Cust: </span>
-          <span>{displayCustomerName}{displayCustomerAddress && ` (${displayCustomerAddress})`}</span>
+          <span>
+            {displayCustomerName}
+            {(estimate.job?.customer?.category === 'company' || estimate.job?.customer?.category === 'dealer') && estimate.job?.customer?.company_name && ` - ${estimate.job.customer.company_name}`}
+            {displayCustomerAddress && ` (${displayCustomerAddress})`}
+          </span>
         </div>
         <div>
           <span className="font-bold">Date: </span>

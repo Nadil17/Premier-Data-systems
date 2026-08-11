@@ -16,6 +16,9 @@ class LookupBase(BaseModel):
 class LookupCreate(LookupBase):
     pass
 
+class LookupBulkCreate(BaseModel):
+    names: List[str] = Field(..., min_length=1)
+
 class LookupResponse(LookupBase):
     id: int
     created_at: datetime
@@ -29,7 +32,6 @@ class PartBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     brand_id: Optional[int] = None
-    model_id: Optional[int] = None
     category_id: Optional[int] = None
     quantity_in_stock: int = Field(0, ge=0)
     minimum_stock_level: int = Field(0, ge=0)
@@ -44,7 +46,6 @@ class PartUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     brand_id: Optional[int] = None
-    model_id: Optional[int] = None
     category_id: Optional[int] = None
     quantity_in_stock: Optional[int] = Field(None, ge=0)
     minimum_stock_level: Optional[int] = Field(None, ge=0)
@@ -58,8 +59,6 @@ class PartResponse(BaseModel):
     description: Optional[str] = None
     brand_id: Optional[int] = None
     brand_name: Optional[str] = None
-    model_id: Optional[int] = None
-    model_name: Optional[str] = None
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     quantity_in_stock: int

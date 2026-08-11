@@ -31,7 +31,6 @@ class JobBase(BaseModel):
     reported_by: str = Field(..., min_length=1, max_length=255)
     additional_phone: Optional[str] = Field(None, max_length=20)
     brand_id: Optional[int] = None
-    model_id: Optional[int] = None
     machine_category_id: Optional[int] = None
     machine_model: str = Field(..., min_length=1, max_length=255)
     serial_number: Optional[str] = Field(None, max_length=255)
@@ -48,10 +47,10 @@ class JobCreate(JobBase):
 
 # Update Job Schema
 class JobUpdate(BaseModel):
+    customer_id: Optional[int] = None
     reported_by: Optional[str] = Field(None, min_length=1, max_length=255)
     additional_phone: Optional[str] = Field(None, max_length=20)
     brand_id: Optional[int] = None
-    model_id: Optional[int] = None
     machine_category_id: Optional[int] = None
     machine_model: Optional[str] = Field(None, min_length=1, max_length=255)
     serial_number: Optional[str] = Field(None, max_length=255)
@@ -121,8 +120,6 @@ class JobResponse(BaseModel):
     additional_phone: Optional[str] = None
     brand_id: Optional[int] = None
     brand_name: Optional[str] = None
-    model_id: Optional[int] = None
-    model_name: Optional[str] = None
     machine_category_id: Optional[int] = None
     machine_category_name: Optional[str] = None
     machine_model: str
@@ -134,6 +131,7 @@ class JobResponse(BaseModel):
     has_pending_handover: bool = False
     has_previous_jobs: bool = False
     assigned_to_id: Optional[int] = None
+    assigned_to_name: Optional[str] = None
     assigned_at: Optional[datetime] = None
     work_done: Optional[str] = None
     tests_performed: Optional[str] = None

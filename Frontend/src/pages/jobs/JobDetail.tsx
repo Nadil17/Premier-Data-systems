@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Phone, User, Wrench, Package, CheckCircle, XCircle, Clock,
   FileText, DollarSign, Box, Truck, Cpu, Tag, AlertCircle, ChevronRight, Printer, Receipt,
-  Mail, MessageSquare, Download
+  Mail, MessageSquare, Download, Edit
 } from 'lucide-react';
 import { jobsAPI, usersAPI, engineerEstimatesAPI, customerEstimatesAPI, partsRequestsAPI, handoversAPI } from '../../api/endpoints';
 import type {
@@ -72,7 +72,7 @@ const JobDetail: React.FC = () => {
       fetchCustomerEstimates();
       fetchPartsRequests();
       fetchHandovers();
-      if (user?.role === 'manager' || user?.role === 'admin') {
+      if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant') {
         fetchEngineers();
       }
     }
@@ -262,24 +262,49 @@ const JobDetail: React.FC = () => {
 
   const getUnrequestedApprovedParts = () => {
     const unrequested: { part_id: number; quantity: number }[] = [];
+    
+    // Calculate total approved quantities per part_id
+    const approvedMap = new Map<number, number>();
     customerEstimates
       .filter((e) => e.approval_status === 'approved' || e.approval_status === 'partially_approved')
       .forEach((estimate) => {
-        estimate.items
-          .filter((item) => item.approval_status === 'approved' && item.item_type === 'part' && item.part_id)
-          .forEach((item) => {
-            const hasBeenRequested = partsRequests.some((req) =>
-              (req.items || []).some(
-                (ri) =>
-                  ri.part_name?.toLowerCase().includes(item.description.toLowerCase()) ||
-                  item.description.toLowerCase().includes(ri.part_name?.toLowerCase() || '')
-              )
-            );
-            if (!hasBeenRequested && item.part_id) {
-              unrequested.push({ part_id: item.part_id, quantity: item.quantity });
-            }
-          });
+        (estimate.items || []).forEach((item: any) => {
+          if (item.approval_status === 'approved' && item.item_type === 'part' && item.part_id) {
+            approvedMap.set(item.part_id, (approvedMap.get(item.part_id) || 0) + (item.quantity || 1));
+          }
+        });
       });
+
+    // Calculate total active requested quantities per part_id
+    const requestedMap = new Map<number, number>();
+    partsRequests.forEach((request) => {
+      (request.items || []).forEach((ri: any) => {
+        if (ri.part_id) {
+          let activeQty = 0;
+          
+          const held = (ri.quantity_issued || 0) - (ri.quantity_returned || 0);
+          if (held > 0) activeQty += held;
+          
+          if (!['rejected', 'cancelled', 'returned'].includes(ri.status)) {
+            const pending = (ri.quantity_requested || 0) - (ri.quantity_issued || 0);
+            if (pending > 0) activeQty += pending;
+          }
+          
+          if (activeQty > 0) {
+            requestedMap.set(ri.part_id, (requestedMap.get(ri.part_id) || 0) + activeQty);
+          }
+        }
+      });
+    });
+
+    // Find deficit
+    approvedMap.forEach((approvedQty, partId) => {
+      const requestedQty = requestedMap.get(partId) || 0;
+      if (requestedQty < approvedQty) {
+        unrequested.push({ part_id: partId, quantity: approvedQty - requestedQty });
+      }
+    });
+
     return unrequested;
   };
 
@@ -363,11 +388,14 @@ const JobDetail: React.FC = () => {
     const issuedParts = new Map<number, number>();
     partsRequests.forEach((request) => {
       (request.items || []).forEach((item: any) => {
-        if (item.part_id && ['issued', 'used', 'return_requested', 'returned'].includes(item.status)) {
-          issuedParts.set(
-            item.part_id,
-            (issuedParts.get(item.part_id) || 0) + (item.quantity_issued || 0)
-          );
+        if (item.part_id) {
+          const validIssued = (item.quantity_issued || 0) - (item.quantity_returned || 0);
+          if (validIssued > 0) {
+            issuedParts.set(
+              item.part_id,
+              (issuedParts.get(item.part_id) || 0) + validIssued
+            );
+          }
         }
       });
     });
@@ -402,7 +430,7 @@ const JobDetail: React.FC = () => {
     );
   }
 
-  const canAssign = (user?.role === 'manager' || user?.role === 'admin') &&
+  const canAssign = (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant') &&
     !['completed', 'waiting_for_accountant_review', 'ready_for_delivery', 'delivered', 'cancelled'].includes(job.status);
   const isAssignedEngineer = user?.role === 'engineer' && job.assigned_to_id === user.id;
   const displayCustomerName =
@@ -502,6 +530,14 @@ const JobDetail: React.FC = () => {
 
           {/* Header actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {job.status === 'unassigned' && (
+              <button
+                onClick={() => navigate(`/jobs/${job.id}/edit`)}
+                className="px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 flex items-center gap-1.5"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit Job
+              </button>
+            )}
             <button
               onClick={() => {
                 setPrintMode('report');
@@ -553,7 +589,7 @@ const JobDetail: React.FC = () => {
                   )}
               </>
             )}
-            {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper') && (
+            {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'storekeeper' || user?.role === 'front_desk') && (
               <>
                 {job.status === 'waiting_for_accountant_review' && (
                   <button
@@ -575,7 +611,7 @@ const JobDetail: React.FC = () => {
                 )}
               </>
             )}
-            {(user?.role === 'front_desk' || user?.role === 'admin' || user?.role === 'manager') &&
+            {(user?.role === 'front_desk' || user?.role === 'admin' || user?.role === 'manager' || user?.role === 'accountant') &&
               job.status === 'ready_for_delivery' && (
                 <button
                   onClick={() => setShowDeliveryModal(true)}
@@ -677,6 +713,11 @@ const JobDetail: React.FC = () => {
                         {displayCustomerName}
                       </Link>
                     </InfoRow>
+                    {(job.customer?.category === 'company' || job.customer?.category === 'dealer') && job.customer?.company_name && (
+                      <InfoRow label="Company">
+                        {job.customer.company_name}
+                      </InfoRow>
+                    )}
                     {displayCustomerPhone && (
                       <InfoRow label="Phone">
                         <a href={`tel:${displayCustomerPhone}`} className="flex items-center gap-1 hover:text-blue-600">
@@ -914,7 +955,7 @@ const JobDetail: React.FC = () => {
                                 )}
                                 Download PDF
                               </button>
-                              {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager') && estimate.approval_status === 'pending' && (
+                              {(user?.role === 'accountant' || user?.role === 'admin' || user?.role === 'manager' || user?.role === 'front_desk') && estimate.approval_status === 'pending' && (
                                 <div className="flex gap-2 mr-2">
                                   <button
                                     onClick={() => navigate(`/estimates/customer/${estimate.id}/edit`)}
@@ -1117,13 +1158,26 @@ const JobDetail: React.FC = () => {
                           Customer Approved Parts — Action Required
                         </SectionTitle>
                         {(() => {
-                          const availableRequests = partsRequests.flatMap(req =>
-                            (req.items || []).map(ri => ({
-                              name: ri.part_name?.toLowerCase() || '',
-                              qty: ri.quantity_requested || 0,
-                              isIssued: ['issued', 'used', 'return_requested', 'returned'].includes(ri.status)
-                            }))
-                          );
+                          const availableRequests: { name: string; qty: number; isIssued: boolean }[] = [];
+                          partsRequests.forEach(req => {
+                            (req.items || []).forEach(ri => {
+                              const name = ri.part_name?.toLowerCase() || '';
+                              
+                              // Issued/Used quantity (exclude returned)
+                              const issuedQty = (ri.quantity_issued || 0) - (ri.quantity_returned || 0);
+                              if (issuedQty > 0) {
+                                availableRequests.push({ name, qty: issuedQty, isIssued: true });
+                              }
+                              
+                              // Pending requested quantity
+                              if (!['rejected', 'cancelled', 'returned'].includes(ri.status)) {
+                                const pendingQty = (ri.quantity_requested || 0) - (ri.quantity_issued || 0);
+                                if (pendingQty > 0) {
+                                  availableRequests.push({ name, qty: pendingQty, isIssued: false });
+                                }
+                              }
+                            });
+                          });
 
                           return customerEstimates
                             .filter((e) => e.approval_status === 'approved' || e.approval_status === 'partially_approved')
@@ -1235,7 +1289,7 @@ const JobDetail: React.FC = () => {
                         )}
 
                       {/* Storekeeper notice */}
-                      {(user?.role === 'storekeeper' || user?.role === 'admin') &&
+                      {(user?.role === 'storekeeper' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant') &&
                         partsRequests.some((r) => r.items?.some((i) => i.status === 'return_requested')) && (
                           <div className="flex items-start gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
                             <AlertCircle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
@@ -1277,7 +1331,9 @@ const JobDetail: React.FC = () => {
                                   {((isAssignedEngineer &&
                                     (request.status === 'approved' || request.status === 'partially_approved')) ||
                                     user?.role === 'storekeeper' ||
-                                    user?.role === 'admin') && (
+                                    user?.role === 'admin' ||
+                                    user?.role === 'front_desk' ||
+                                    user?.role === 'accountant') && (
                                       <th className="text-center py-2 px-3 font-medium text-gray-500">Action</th>
                                     )}
                                 </tr>
@@ -1306,7 +1362,7 @@ const JobDetail: React.FC = () => {
                                   );
                                   const needsAction = canTakeAction || item.status === 'return_requested' || maxReturnableRejected > 0;
                                   const isStorekeeper =
-                                    user?.role === 'storekeeper' || user?.role === 'admin';
+                                    user?.role === 'storekeeper' || user?.role === 'admin' || user?.role === 'front_desk' || user?.role === 'accountant';
                                   return (
                                     <tr
                                       key={item.id}

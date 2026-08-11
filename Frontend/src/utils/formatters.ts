@@ -1,18 +1,28 @@
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 
+const parseDateWithUTC = (date: string | Date): Date => {
+  if (!date) return new Date();
+  if (typeof date === 'string') {
+    let dateStr = date;
+    // Check if the string ends with Z or a timezone offset like +05:30 or -05:00
+    if (!dateStr.endsWith('Z') && !/([+-]\d{2}:?\d{2})$/.test(dateStr)) {
+      dateStr += 'Z';
+    }
+    return parseISO(dateStr);
+  }
+  return date;
+};
+
 export const formatDate = (date: string | Date): string => {
-  const parsedDate = typeof date === 'string' ? parseISO(date) : date;
-  return format(parsedDate, 'MMM dd, yyyy');
+  return format(parseDateWithUTC(date), 'MMM dd, yyyy');
 };
 
 export const formatDateTime = (date: string | Date): string => {
-  const parsedDate = typeof date === 'string' ? parseISO(date) : date;
-  return format(parsedDate, 'MMM dd, yyyy HH:mm');
+  return format(parseDateWithUTC(date), 'MMM dd, yyyy HH:mm');
 };
 
 export const formatRelativeTime = (date: string | Date): string => {
-  const parsedDate = typeof date === 'string' ? parseISO(date) : date;
-  return formatDistanceToNow(parsedDate, { addSuffix: true });
+  return formatDistanceToNow(parseDateWithUTC(date), { addSuffix: true });
 };
 
 export const formatCurrency = (amount: number): string => {

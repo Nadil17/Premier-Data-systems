@@ -27,6 +27,8 @@ export interface Customer {
   phone_2?: string;
   phone_3?: string;
   email?: string;
+  email_2?: string;
+  email_3?: string;
   address?: string;
   category?: string;
   tax_number?: string;
@@ -67,7 +69,6 @@ export interface Job {
 
   // Machine details
   brand_name?: string;
-  model_name?: string;
   machine_model?: string;
   machine_category_name?: string;
   serial_number?: string;

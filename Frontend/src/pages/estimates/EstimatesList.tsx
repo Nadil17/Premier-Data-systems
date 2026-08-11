@@ -51,7 +51,7 @@ const EstimatesList: React.FC = () => {
 
   useEffect(() => {
     // Non-accountants default to customer estimates tab
-    if (user && user.role !== 'accountant' && user.role !== 'admin' && user.role !== 'manager') {
+    if (user && user.role !== 'accountant' && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'front_desk') {
       setActiveTab('customer_estimates');
     }
     fetchData();
@@ -63,7 +63,7 @@ const EstimatesList: React.FC = () => {
       const promises = [customerEstimatesAPI.getAll(0, 100)];
       
       // Only fetch pending engineer estimates for accountant and admin
-      if (user && (user.role === 'accountant' || user.role === 'admin' || user.role === 'manager')) {
+      if (user && (user.role === 'accountant' || user.role === 'admin' || user.role === 'manager' || user.role === 'front_desk')) {
         promises.push(engineerEstimatesAPI.getPending());
       }
 
@@ -154,7 +154,7 @@ const EstimatesList: React.FC = () => {
     );
   }
 
-  const isAccountantOrAdmin = user && (user.role === 'accountant' || user.role === 'admin' || user.role === 'manager');
+  const isAccountantOrAdmin = user && (user.role === 'accountant' || user.role === 'admin' || user.role === 'manager' || user.role === 'front_desk');
 
   return (
     <div className="space-y-6">

@@ -4,13 +4,14 @@ import toast from 'react-hot-toast';
 
 import { productsAPI } from '../../api/endpoints';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ManageDataModal from '../../components/modals/ManageDataModal';
+import BulkUploadModal from '../../components/modals/BulkUploadModal';
 import type { LookupItem, Product, ProductCreate, ProductUpdate } from '../../types';
 import { getErrorMessage } from '../../utils/apiErrors';
 
 const ProductsList = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<LookupItem[]>([]);
-  const [models, setModels] = useState<LookupItem[]>([]);
   const [categories, setCategories] = useState<LookupItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,17 +21,16 @@ const ProductsList = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const [newBrandName, setNewBrandName] = useState('');
-  const [newModelName, setNewModelName] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewBrand, setShowNewBrand] = useState(false);
-  const [showNewModel, setShowNewModel] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
+  const [isBulkAddOpen, setIsBulkAddOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     brand_id: '' as string | number,
-    model_id: '' as string | number,
     category_id: '' as string | number,
     unit_price: 0,
     quantity_in_stock: 0,
@@ -44,7 +44,7 @@ const ProductsList = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const data = await productsAPI.getAll(0, 200);
+      const data = await productsAPI.getAll(0, 5000);
       setProducts(data?.items || (Array.isArray(data) ? data : []));
     } catch (error) {
       toast.error('Failed to fetch products');
@@ -57,9 +57,8 @@ const ProductsList = () => {
 
   const fetchLookups = async () => {
     try {
-      const [brandsResult, modelsResult, categoriesResult] = await Promise.allSettled([
+      const [brandsResult, categoriesResult] = await Promise.allSettled([
         productsAPI.getBrands(),
-        productsAPI.getModels(),
         productsAPI.getCategories(),
       ]);
 
@@ -67,12 +66,6 @@ const ProductsList = () => {
         setBrands(brandsResult.value);
       } else {
         console.error('Failed to fetch product brands:', brandsResult.reason);
-      }
-
-      if (modelsResult.status === 'fulfilled') {
-        setModels(modelsResult.value);
-      } else {
-        console.error('Failed to fetch product models:', modelsResult.reason);
       }
 
       if (categoriesResult.status === 'fulfilled') {
@@ -83,7 +76,6 @@ const ProductsList = () => {
 
       if (
         brandsResult.status === 'rejected' ||
-        modelsResult.status === 'rejected' ||
         categoriesResult.status === 'rejected'
       ) {
         toast.error('Some product lookups could not be loaded');
@@ -99,7 +91,6 @@ const ProductsList = () => {
       name: '',
       description: '',
       brand_id: '',
-      model_id: '',
       category_id: '',
       unit_price: 0,
       quantity_in_stock: 0,
@@ -107,10 +98,8 @@ const ProductsList = () => {
     setEditingProduct(null);
     setShowForm(false);
     setShowNewBrand(false);
-    setShowNewModel(false);
     setShowNewCategory(false);
     setNewBrandName('');
-    setNewModelName('');
     setNewCategoryName('');
   };
 
@@ -125,7 +114,6 @@ const ProductsList = () => {
       name: product.name,
       description: product.description || '',
       brand_id: product.brand_id || '',
-      model_id: product.model_id || '',
       category_id: product.category_id || '',
       unit_price: (product.unit_price || 0),
       quantity_in_stock: (product.quantity_in_stock || 0),
@@ -134,7 +122,7 @@ const ProductsList = () => {
   };
 
   const handleLookupCreate = async (
-    type: 'brand' | 'model' | 'category',
+    type: 'brand' | 'category',
     name: string,
   ) => {
     const trimmedName = name.trim();
@@ -148,12 +136,6 @@ const ProductsList = () => {
         setFormData((prev) => ({ ...prev, brand_id: created.id }));
         setNewBrandName('');
         setShowNewBrand(false);
-      } else if (type === 'model') {
-        created = await productsAPI.createModel(trimmedName);
-        setModels((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-        setFormData((prev) => ({ ...prev, model_id: created.id }));
-        setNewModelName('');
-        setShowNewModel(false);
       } else {
         created = await productsAPI.createCategory(trimmedName);
         setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
@@ -165,6 +147,34 @@ const ProductsList = () => {
       toast.success(`${created.name} created`);
     } catch (error) {
       toast.error(getErrorMessage(error, `Failed to create ${type}`));
+    }
+  };
+
+  const handleBulkAdd = async (type: 'brand' | 'category', names: string[]) => {
+    try {
+      if (type === 'brand') {
+        await productsAPI.bulkCreateBrand(names);
+      } else {
+        await productsAPI.bulkCreateCategory(names);
+      }
+      fetchLookups(); // refresh lookups
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to bulk add ${type}`));
+      throw error;
+    }
+  };
+
+  const handleDeleteLookup = async (type: 'brand' | 'category', id: number) => {
+    try {
+      if (type === 'brand') {
+        await productsAPI.deleteBrand(id);
+      } else {
+        await productsAPI.deleteCategory(id);
+      }
+      fetchLookups(); // refresh lookups
+    } catch (error) {
+      toast.error(getErrorMessage(error, `Failed to delete ${type}`));
+      throw error;
     }
   };
 
@@ -184,7 +194,6 @@ const ProductsList = () => {
           name: formData.name,
           description: formData.description || undefined,
           brand_id: formData.brand_id ? Number(formData.brand_id) : undefined,
-          model_id: formData.model_id ? Number(formData.model_id) : undefined,
           category_id: formData.category_id ? Number(formData.category_id) : undefined,
           unit_price: formData.unit_price,
           quantity_in_stock: formData.quantity_in_stock,
@@ -196,7 +205,6 @@ const ProductsList = () => {
           name: formData.name,
           description: formData.description || undefined,
           brand_id: formData.brand_id ? Number(formData.brand_id) : undefined,
-          model_id: formData.model_id ? Number(formData.model_id) : undefined,
           category_id: formData.category_id ? Number(formData.category_id) : undefined,
           unit_price: formData.unit_price,
           quantity_in_stock: formData.quantity_in_stock,
@@ -235,7 +243,6 @@ const ProductsList = () => {
       !searchQuery ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (product.brand_name && product.brand_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (product.model_name && product.model_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (product.category_name && product.category_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCategory =
@@ -253,7 +260,7 @@ const ProductsList = () => {
     setValue: (value: string | number) => void,
     setNewValue: (value: string) => void,
     setInlineVisible: (value: boolean) => void,
-    createType: 'brand' | 'model' | 'category',
+    createType: 'brand' | 'category',
   ) => (
     <div>
       <label className="label">{label}</label>
@@ -335,10 +342,20 @@ const ProductsList = () => {
             {products.length} finished goods available for sales inventory
           </p>
         </div>
-        <button onClick={openCreateForm} className="btn-primary flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Add Product
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setIsBulkUploadOpen(true)} className="btn-secondary flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
+            <Plus className="h-5 w-5" />
+            Bulk Upload
+          </button>
+          <button onClick={() => setIsBulkAddOpen(true)} className="btn-secondary flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Manage Data
+          </button>
+          <button onClick={openCreateForm} className="btn-primary flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -349,7 +366,7 @@ const ProductsList = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input w-full pl-10"
-            placeholder="Search by name, brand, model, or category..."
+            placeholder="Search by name, brand, or category..."
           />
         </div>
         <select
@@ -428,18 +445,6 @@ const ProductsList = () => {
                   setNewBrandName,
                   setShowNewBrand,
                   'brand',
-                )}
-
-                {renderLookupField(
-                  'Model',
-                  formData.model_id,
-                  models,
-                  showNewModel,
-                  newModelName,
-                  (value) => setFormData((prev) => ({ ...prev, model_id: value })),
-                  setNewModelName,
-                  setShowNewModel,
-                  'model',
                 )}
 
                 {renderLookupField(
@@ -529,7 +534,6 @@ const ProductsList = () => {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Brand</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Model</th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Category</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Stock</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Price</th>
@@ -548,7 +552,6 @@ const ProductsList = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{product.brand_name || '--'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{product.model_name || '--'}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{product.category_name || '--'}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
                       {(product.quantity_in_stock || 0)}
@@ -583,6 +586,30 @@ const ProductsList = () => {
           </div>
         </div>
       )}
+
+      <ManageDataModal
+        isOpen={isBulkAddOpen}
+        onClose={() => setIsBulkAddOpen(false)}
+        onSave={handleBulkAdd}
+        onDelete={handleDeleteLookup}
+        brands={brands}
+        categories={categories}
+        defaultType="brand"
+      />
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        onUpload={async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await productsAPI.bulkUpload(formData);
+          toast.success(res.message || 'Products uploaded successfully!');
+          fetchProducts();
+          fetchLookups();
+        }}
+        title="Bulk Upload Products"
+        expectedColumns={['Name', 'Description', 'Brand', 'Category', 'Unit Price', 'Stock']}
+      />
     </div>
   );
 };

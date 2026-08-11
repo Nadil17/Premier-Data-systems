@@ -13,7 +13,8 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 def require_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != UserRole.ADMIN:
+    """Allow ADMIN, FRONT_DESK, and ACCOUNTANT (admin-equivalent) roles."""
+    if current_user.role not in (UserRole.ADMIN, UserRole.FRONT_DESK, UserRole.ACCOUNTANT):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can access this resource"

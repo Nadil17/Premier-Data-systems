@@ -44,7 +44,7 @@ def populate_cust_est(est):
     if est:
         est.accountant_name = est.accountant.full_name if est.accountant else None
         est.job_number = est.job.job_number if est.job else None
-        est.customer_name = est.job.customer.name if est.job and est.job.customer else None
+        est.customer_name = est.job.customer.display_name if est.job and est.job.customer else None
     return est
 
 
@@ -63,20 +63,24 @@ def recalculate_estimate_totals(db_estimate: CustomerEstimate):
                 if (item.approval_status.value if hasattr(item.approval_status, 'value') else str(item.approval_status)) == 'approved'
             ]
         
-        subtotal = sum(item.total_price for item in relevant_items)
-        db_estimate.subtotal = round(subtotal, 2)
+        items_total = sum(item.total_price for item in relevant_items)
         if db_estimate.include_tax:
-            db_estimate.tax_amount = round(subtotal * 0.18, 2)
+            # Tax-inclusive: entered amount IS the total, extract tax from within
+            db_estimate.subtotal = round(items_total / 1.18, 2)
+            db_estimate.tax_amount = round(items_total - db_estimate.subtotal, 2)
+            db_estimate.total_amount = round(items_total, 2)
         else:
+            # No tax: entered amount is displayed as-is
+            db_estimate.subtotal = round(items_total, 2)
             db_estimate.tax_amount = 0.0
-        db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
+            db_estimate.total_amount = round(items_total, 2)
 
 
 def populate_eng_est(est):
     if est:
         est.engineer_name = est.engineer.full_name if est.engineer else None
         est.job_number = est.job.job_number if est.job else None
-        est.customer_name = est.job.customer.name if est.job and est.job.customer else None
+        est.customer_name = est.job.customer.display_name if est.job and est.job.customer else None
     return est
 
 
@@ -257,9 +261,16 @@ def create_customer_estimate(
         )
         db.add(db_item)
 
-    db_estimate.subtotal = round(subtotal, 2)
-    db_estimate.tax_amount = round(subtotal * 0.18, 2) if include_tax else 0.0
-    db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
+    if include_tax:
+        # Tax-inclusive: entered amount IS the total, extract tax from within
+        db_estimate.subtotal = round(subtotal / 1.18, 2)
+        db_estimate.tax_amount = round(subtotal - db_estimate.subtotal, 2)
+        db_estimate.total_amount = round(subtotal, 2)
+    else:
+        # No tax: entered amount is displayed as-is
+        db_estimate.subtotal = round(subtotal, 2)
+        db_estimate.tax_amount = 0.0
+        db_estimate.total_amount = round(subtotal, 2)
     
     # Update job status to WAITING_FOR_ESTIMATE_APPROVAL
     job.status = JobStatus.WAITING_FOR_ESTIMATE_APPROVAL
@@ -325,9 +336,16 @@ def update_customer_estimate(
             )
             db.add(db_item)
             
-        db_estimate.subtotal = round(subtotal, 2)
-        db_estimate.tax_amount = round(subtotal * 0.18, 2) if db_estimate.include_tax else 0.0
-        db_estimate.total_amount = round(db_estimate.subtotal + db_estimate.tax_amount, 2)
+        if db_estimate.include_tax:
+            # Tax-inclusive: entered amount IS the total, extract tax from within
+            db_estimate.subtotal = round(subtotal / 1.18, 2)
+            db_estimate.tax_amount = round(subtotal - db_estimate.subtotal, 2)
+            db_estimate.total_amount = round(subtotal, 2)
+        else:
+            # No tax: entered amount is displayed as-is
+            db_estimate.subtotal = round(subtotal, 2)
+            db_estimate.tax_amount = 0.0
+            db_estimate.total_amount = round(subtotal, 2)
 
     db.commit()
     
@@ -388,14 +406,21 @@ def send_estimate_email(
         except Exception as e:
             logger.error(f"Failed to generate estimate PDF: {e}")
             
-        # Determine recipient email
-        email_to = request.email or customer.email
+        # Determine recipient emails
+        emails = []
+        if request.email:
+            emails.append(request.email)
+        else:
+            if customer.email: emails.append(customer.email)
+            if getattr(customer, 'email_2', None): emails.append(customer.email_2)
+            if getattr(customer, 'email_3', None): emails.append(customer.email_3)
+            
         email_sent = False
         
         link = f"http://localhost:5173/estimate/verify/{db_estimate.estimate_number}"
         
         should_send_email = request.send_via in ["email", "both", None]
-        if should_send_email and email_to:
+        if should_send_email and emails:
             subject = f"Repair Estimate Ready - {db_estimate.estimate_number}"
             body = f"""
             Hello {customer.name},
@@ -413,13 +438,20 @@ def send_estimate_email(
             
             Thank you for choosing Premier Data Systems!
             """
-            email_sent = send_email(
-                to_email=email_to,
-                subject=subject,
-                body=body,
-                attachment_path=pdf_path if pdf_generated else None,
-                attachment_name=f"Estimate_{db_estimate.estimate_number}.pdf"
-            )
+            # Send to each email address individually
+            for recipient in emails:
+                result = send_email(
+                    to_email=recipient,
+                    subject=subject,
+                    body=body,
+                    attachment_path=pdf_path if pdf_generated else None,
+                    attachment_name=f"Estimate_{db_estimate.estimate_number}.pdf"
+                )
+                if result:
+                    email_sent = True
+                    logger.info(f"Estimate email sent to {recipient}")
+                else:
+                    logger.warning(f"Failed to send estimate email to {recipient}")
 
         # Send WhatsApp notification
         whatsapp_sent = False
@@ -427,7 +459,7 @@ def send_estimate_email(
         if should_send_whatsapp and customer.phone_1:
             whatsapp_sent = whatsapp_service.send_estimate_link(
                 customer_phone=customer.phone_1,
-                customer_name=customer.name,
+                customer_name=customer.display_name,
                 estimate_number=db_estimate.estimate_number,
                 otp=otp_code,
                 link=link
@@ -529,9 +561,9 @@ def manual_approve_estimate(
             accountant_phone=current_user.phone or "",
             accountant_name=current_user.full_name,
             estimate_number=db_estimate.estimate_number,
-            job_number=job.job_number,
+            job_number=job.job_number if job else None,
             job_id=job.id,
-            customer_name=customer.name if customer else "Unknown",
+            customer_name=customer.display_name if customer else "Unknown",
             approval_status=request.overall_status.value,
             customer_comments=request.customer_comments
         )
@@ -812,9 +844,9 @@ def approve_customer_estimate(
             accountant_phone=db_estimate.accountant.phone or "",
             accountant_name=db_estimate.accountant.full_name,
             estimate_number=db_estimate.estimate_number,
-            job_number=job.job_number,
+            job_number=job.job_number if job else None,
             job_id=job.id,
-            customer_name=job.customer.name if job.customer else "Unknown",
+            customer_name=job.customer.display_name if job.customer else "Unknown",
             approval_status=approval_data.approval_status.value,
             customer_comments=approval_data.customer_comments
         )
